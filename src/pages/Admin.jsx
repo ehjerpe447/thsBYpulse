@@ -277,6 +277,8 @@ function AdminConsole({ user }) {
         </div>
       </section>
 
+      <DemographicBreakdown sentiment={sentiment} view={view} />
+
       <section className="space-y-3">
         <h2 className="text-base">Idea queue · ranked by upvotes</h2>
         {queue.length === 0 ? (
@@ -455,6 +457,165 @@ function PromoteModal({ idea, onClose, onSubmit, error }) {
         </form>
       </div>
     </div>
+  );
+}
+
+const BREAKDOWN_DIMS = [
+  { key: 'role',     label: 'Role' },
+  { key: 'location', label: 'Location' },
+  { key: 'bu',       label: 'Business Unit' },
+];
+
+function computeSegmentBreakdown(entries, dimension, windowMs) {
+  const now = Date.now();
+
+  const withTime = entries
+    .map((e) => ({ ...e, ts: e.timestamp?.toMillis?.() }))
+    .filter((e) => e.ts);
+
+  const avg = (arr) =>
+    arr.length ? arr.reduce((s, e) => s + (e.emoji || 0), 0) / arr.length : null;
+
+  const current = withTime.filter((e) => e.ts >= now - windowMs && e.ts < now);
+  const prior   = withTime.filter((e) => e.ts >= now - 2 * windowMs && e.ts < now - windowMs);
+
+  const groups = {};
+  for (const entry of current) {
+    const key = entry[dimension];
+    if (!key) continue;
+    if (!groups[key]) groups[key] = { cur: [], pri: [] };
+    groups[key].cur.push(entry);
+  }
+  for (const entry of prior) {
+    const key = entry[dimension];
+    if (!key || !groups[key]) continue;
+    groups[key].pri.push(entry);
+  }
+
+  return Object.entries(groups)
+    .map(([name, { cur, pri }]) => {
+      const curAvg  = avg(cur);
+      const priAvg  = avg(pri);
+      return {
+        name,
+        avg:   curAvg,
+        count: cur.length,
+        delta: curAvg != null && priAvg != null ? curAvg - priAvg : null,
+      };
+    })
+    .sort((a, b) => (a.avg ?? 999) - (b.avg ?? 999)); // lowest sentiment first
+}
+
+function DemographicBreakdown({ sentiment, view }) {
+  const [dim, setDim] = useState('role');
+
+  const DAY   = 24 * 60 * 60 * 1000;
+  const windowMs    = view === 'near' ? 7 * DAY : 30 * DAY;
+  const periodLabel = view === 'near' ? 'this week' : 'this month';
+
+  const rows = useMemo(
+    () => computeSegmentBreakdown(sentiment, dim, windowMs),
+    [sentiment, dim, windowMs],
+  );
+
+  const dimLabel = BREAKDOWN_DIMS.find((d) => d.key === dim)?.label ?? dim;
+
+  return (
+    <section className="card space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 className="text-base">Sentiment by segment</h2>
+          <p className="text-xs text-brand-slate/60 mt-0.5">
+            {periodLabel} · respondents who provided context
+          </p>
+        </div>
+        <div className="inline-flex rounded-lg border border-brand-green/15 bg-white p-0.5">
+          {BREAKDOWN_DIMS.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setDim(key)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
+                dim === key
+                  ? 'bg-brand-green text-white'
+                  : 'text-brand-slate hover:text-brand-green'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="text-sm text-brand-slate/60 text-center py-6">
+          No {periodLabel} responses with {dimLabel} data.
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-brand-green/10 text-[11px] uppercase tracking-wider text-brand-slate/50">
+                <th className="text-left pb-2 font-semibold">Segment</th>
+                <th className="text-right pb-2 font-semibold px-4">Avg</th>
+                <th className="pb-2 px-4" aria-label="Score bar" />
+                <th className="text-right pb-2 font-semibold px-4">Responses</th>
+                <th className="text-right pb-2 font-semibold pl-4">
+                  {view === 'near' ? 'vs. last week' : 'vs. prior month'}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-brand-green/5">
+              {rows.map((row) => {
+                const scoreColor =
+                  row.avg >= 4   ? 'text-brand-leaf'
+                  : row.avg >= 3 ? 'text-brand-green'
+                  : row.avg >= 2 ? 'text-amber-600'
+                  :                'text-red-600';
+                const Icon =
+                  row.delta != null && row.delta >  0.05 ? TrendingUp
+                  : row.delta != null && row.delta < -0.05 ? TrendingDown
+                  : Minus;
+                const tone =
+                  row.delta != null && row.delta >  0.05 ? 'text-brand-leaf'
+                  : row.delta != null && row.delta < -0.05 ? 'text-red-600'
+                  : 'text-brand-slate/50';
+                const barPct = ((row.avg - 1) / 4) * 100;
+
+                return (
+                  <tr key={row.name}>
+                    <td className="py-2.5 font-medium text-brand-slate">{row.name}</td>
+                    <td className={`py-2.5 px-4 text-right font-semibold tabular-nums ${scoreColor}`}>
+                      {row.avg?.toFixed(2)}
+                      <span className="text-brand-slate/40 text-xs font-normal ml-0.5">/5</span>
+                    </td>
+                    <td className="py-2.5 px-4 w-28">
+                      <div className="h-1.5 rounded-full bg-brand-green/10">
+                        <div
+                          className="h-1.5 rounded-full bg-brand-green/60"
+                          style={{ width: `${barPct}%` }}
+                        />
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-4 text-right text-brand-slate/70 tabular-nums">
+                      {row.count}
+                    </td>
+                    <td className={`py-2.5 pl-4 text-right ${tone}`}>
+                      <span className="inline-flex items-center justify-end gap-1">
+                        <Icon size={13} />
+                        {row.delta != null
+                          ? `${row.delta >= 0 ? '+' : ''}${row.delta.toFixed(2)}`
+                          : '—'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
