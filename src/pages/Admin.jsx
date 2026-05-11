@@ -122,6 +122,7 @@ function AdminConsole({ user }) {
   const [promoting, setPromoting] = useState(null);
   const [promoteError, setPromoteError] = useState('');
   const [snapshotError, setSnapshotError] = useState('');
+  const [chartRange, setChartRange] = useState('14d');
 
   useEffect(() => {
     const onError = (err) => {
@@ -178,26 +179,49 @@ function AdminConsole({ user }) {
         </div>
       )}
 
-      <section className="grid sm:grid-cols-3 gap-3">
+      <section className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <ScoreCard
           label="This week"
           score={stats.thisWeek.avg}
           count={stats.thisWeek.count}
           delta={stats.delta}
+          deltaLabel="vs. last week"
+        />
+        <ScoreCard
+          label="This month"
+          score={stats.thisMonth.avg}
+          count={stats.thisMonth.count}
+          delta={stats.monthDelta}
+          deltaLabel="vs. prior month"
         />
         <MetricCard label="Total responses" value={sentiment.length} />
         <MetricCard label="Ideas in queue" value={queue.length} />
       </section>
 
       <section className="card space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base">Sentiment trend (last 14 days)</h2>
-          <span className="text-xs text-brand-slate/60">avg score, daily</span>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="text-base">Sentiment trend</h2>
+          <div className="flex items-center gap-1 rounded-lg border border-brand-green/15 bg-white p-0.5">
+            {[['14d', '14 days'], ['30d', '30 days'], ['90d', '90 days']].map(([val, label]) => (
+              <button
+                key={val}
+                type="button"
+                onClick={() => setChartRange(val)}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition ${
+                  chartRange === val
+                    ? 'bg-brand-green text-white'
+                    : 'text-brand-slate hover:text-brand-green'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="h-64">
-          {stats.daily.length > 0 ? (
+          {(chartRange === '14d' ? stats.daily14 : chartRange === '30d' ? stats.daily30 : stats.daily90).length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={stats.daily}>
+              <LineChart data={chartRange === '14d' ? stats.daily14 : chartRange === '30d' ? stats.daily30 : stats.daily90}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis
                   dataKey="day"
@@ -205,6 +229,7 @@ function AdminConsole({ user }) {
                   stroke="#4A4A4A"
                   tickLine={false}
                   axisLine={false}
+                  interval={chartRange === '14d' ? 1 : chartRange === '30d' ? 4 : 13}
                 />
                 <YAxis
                   domain={[1, 5]}
@@ -226,7 +251,7 @@ function AdminConsole({ user }) {
                   dataKey="avg"
                   stroke="#004A29"
                   strokeWidth={2.5}
-                  dot={{ fill: '#004A29', r: 3 }}
+                  dot={chartRange === '14d' ? { fill: '#004A29', r: 3 } : false}
                   activeDot={{ r: 5 }}
                 />
               </LineChart>
@@ -306,7 +331,7 @@ function MetricCard({ label, value }) {
   );
 }
 
-function ScoreCard({ label, score, count, delta }) {
+function ScoreCard({ label, score, count, delta, deltaLabel = 'vs. last week' }) {
   const Icon = delta != null && delta > 0.05 ? TrendingUp : delta != null && delta < -0.05 ? TrendingDown : Minus;
   const tone = delta != null && delta > 0.05 ? 'text-brand-leaf' : delta != null && delta < -0.05 ? 'text-red-600' : 'text-brand-slate/60';
   const display = score != null ? score.toFixed(2) : '—';
@@ -322,8 +347,8 @@ function ScoreCard({ label, score, count, delta }) {
       <div className={`mt-1 flex items-center gap-1 text-xs font-medium ${tone}`}>
         <Icon size={13} />
         {delta == null
-          ? 'No prior week'
-          : `${delta >= 0 ? '+' : ''}${delta.toFixed(2)} vs. last week`}
+          ? 'No prior period'
+          : `${delta >= 0 ? '+' : ''}${delta.toFixed(2)} ${deltaLabel}`}
       </div>
     </div>
   );
@@ -424,6 +449,7 @@ function computeSentimentStats(entries) {
   const now = Date.now();
   const DAY = 24 * 60 * 60 * 1000;
   const WEEK = 7 * DAY;
+  const MONTH = 30 * DAY;
 
   const withTime = entries
     .map((e) => ({ ...e, ts: e.timestamp?.toMillis?.() }))
@@ -432,30 +458,47 @@ function computeSentimentStats(entries) {
   const inRange = (start, end) =>
     withTime.filter((e) => e.ts >= start && e.ts < end);
 
-  const thisWeekEntries = inRange(now - WEEK, now);
-  const lastWeekEntries = inRange(now - 2 * WEEK, now - WEEK);
-
   const avg = (arr) =>
     arr.length ? arr.reduce((s, e) => s + (e.emoji || 0), 0) / arr.length : null;
 
+  // Weekly comparison
+  const thisWeekEntries = inRange(now - WEEK, now);
+  const lastWeekEntries = inRange(now - 2 * WEEK, now - WEEK);
   const thisWeek = { avg: avg(thisWeekEntries), count: thisWeekEntries.length };
   const lastWeek = { avg: avg(lastWeekEntries), count: lastWeekEntries.length };
   const delta =
     thisWeek.avg != null && lastWeek.avg != null ? thisWeek.avg - lastWeek.avg : null;
 
-  const daily = [];
-  for (let i = 13; i >= 0; i--) {
-    const start = now - (i + 1) * DAY;
-    const end = now - i * DAY;
-    const day = inRange(start, end);
-    const date = new Date(end - DAY / 2);
-    daily.push({
-      day: `${date.getMonth() + 1}/${date.getDate()}`,
-      avg: avg(day),
-      count: day.length,
-    });
-  }
-  const hasData = daily.some((d) => d.avg != null);
+  // Monthly comparison (rolling 30-day windows)
+  const thisMonthEntries = inRange(now - MONTH, now);
+  const lastMonthEntries = inRange(now - 2 * MONTH, now - MONTH);
+  const thisMonth = { avg: avg(thisMonthEntries), count: thisMonthEntries.length };
+  const lastMonth = { avg: avg(lastMonthEntries), count: lastMonthEntries.length };
+  const monthDelta =
+    thisMonth.avg != null && lastMonth.avg != null ? thisMonth.avg - lastMonth.avg : null;
 
-  return { thisWeek, lastWeek, delta, daily: hasData ? daily : [] };
+  // Build daily buckets for a given number of days
+  const buildDaily = (days) => {
+    const data = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const start = now - (i + 1) * DAY;
+      const end = now - i * DAY;
+      const day = inRange(start, end);
+      const date = new Date(end - DAY / 2);
+      data.push({
+        day: `${date.getMonth() + 1}/${date.getDate()}`,
+        avg: avg(day),
+        count: day.length,
+      });
+    }
+    return data.some((d) => d.avg != null) ? data : [];
+  };
+
+  return {
+    thisWeek, lastWeek, delta,
+    thisMonth, lastMonth, monthDelta,
+    daily14: buildDaily(14),
+    daily30: buildDaily(30),
+    daily90: buildDaily(90),
+  };
 }

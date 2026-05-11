@@ -12,6 +12,7 @@ function computeSentimentStats(entries) {
   const now = Date.now();
   const DAY = 24 * 60 * 60 * 1000;
   const WEEK = 7 * DAY;
+  const MONTH = 30 * DAY;
 
   const withTime = entries
     .map((e) => ({ ...e, ts: e.timestamp?.toMillis?.() }))
@@ -20,32 +21,46 @@ function computeSentimentStats(entries) {
   const inRange = (start, end) =>
     withTime.filter((e) => e.ts >= start && e.ts < end);
 
-  const thisWeekEntries = inRange(now - WEEK, now);
-  const lastWeekEntries = inRange(now - 2 * WEEK, now - WEEK);
-
   const avg = (arr) =>
     arr.length ? arr.reduce((s, e) => s + (e.emoji || 0), 0) / arr.length : null;
 
+  const thisWeekEntries = inRange(now - WEEK, now);
+  const lastWeekEntries = inRange(now - 2 * WEEK, now - WEEK);
   const thisWeek = { avg: avg(thisWeekEntries), count: thisWeekEntries.length };
   const lastWeek = { avg: avg(lastWeekEntries), count: lastWeekEntries.length };
   const delta =
     thisWeek.avg != null && lastWeek.avg != null ? thisWeek.avg - lastWeek.avg : null;
 
-  const daily = [];
-  for (let i = 13; i >= 0; i--) {
-    const start = now - (i + 1) * DAY;
-    const end = now - i * DAY;
-    const day = inRange(start, end);
-    const date = new Date(end - DAY / 2);
-    daily.push({
-      day: `${date.getMonth() + 1}/${date.getDate()}`,
-      avg: avg(day),
-      count: day.length,
-    });
-  }
-  const hasData = daily.some((d) => d.avg != null);
+  const thisMonthEntries = inRange(now - MONTH, now);
+  const lastMonthEntries = inRange(now - 2 * MONTH, now - MONTH);
+  const thisMonth = { avg: avg(thisMonthEntries), count: thisMonthEntries.length };
+  const lastMonth = { avg: avg(lastMonthEntries), count: lastMonthEntries.length };
+  const monthDelta =
+    thisMonth.avg != null && lastMonth.avg != null ? thisMonth.avg - lastMonth.avg : null;
 
-  return { thisWeek, lastWeek, delta, daily: hasData ? daily : [] };
+  const buildDaily = (days) => {
+    const data = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const start = now - (i + 1) * DAY;
+      const end = now - i * DAY;
+      const day = inRange(start, end);
+      const date = new Date(end - DAY / 2);
+      data.push({
+        day: `${date.getMonth() + 1}/${date.getDate()}`,
+        avg: avg(day),
+        count: day.length,
+      });
+    }
+    return data.some((d) => d.avg != null) ? data : [];
+  };
+
+  return {
+    thisWeek, lastWeek, delta,
+    thisMonth, lastMonth, monthDelta,
+    daily14: buildDaily(14),
+    daily30: buildDaily(30),
+    daily90: buildDaily(90),
+  };
 }
 
 // nextQuarter (from Admin.jsx)
@@ -100,7 +115,7 @@ describe('computeSentimentStats', () => {
     expect(r.thisWeek.avg).toBeNull();
     expect(r.thisWeek.count).toBe(0);
     expect(r.delta).toBeNull();
-    expect(r.daily).toEqual([]);
+    expect(r.daily14).toEqual([]);
   });
 
   test('U2 — all entries this week: lastWeek null, delta null', () => {
@@ -151,14 +166,32 @@ describe('computeSentimentStats', () => {
     expect(r.thisWeek.avg).toBeCloseTo(3.0);
   });
 
-  test('U8 — 14 days of data produces 14 daily entries', () => {
+  test('U8 — 14 days of data produces 14 daily14 entries', () => {
     // Each bucket is [now-(i+1)*DAY, now-i*DAY). Use i+0.5 so every entry lands
     // strictly inside its own bucket — integer daysAgo would sit on a boundary and
     // fall into the adjacent (newer) bucket instead.
     const entries = Array.from({ length: 14 }, (_, i) => makeEntry(3, i + 0.5));
     const r = computeSentimentStats(entries);
-    expect(r.daily).toHaveLength(14);
-    r.daily.forEach((d) => expect(d.avg).not.toBeNull());
+    expect(r.daily14).toHaveLength(14);
+    r.daily14.forEach((d) => expect(d.avg).not.toBeNull());
+  });
+
+  test('U8b — monthly stats compute correctly with data in both windows', () => {
+    const entries = [
+      makeEntry(4, 10), makeEntry(4, 20),  // this month avg=4
+      makeEntry(2, 40), makeEntry(2, 50),  // last month avg=2
+    ];
+    const r = computeSentimentStats(entries);
+    expect(r.thisMonth.avg).toBeCloseTo(4.0);
+    expect(r.lastMonth.avg).toBeCloseTo(2.0);
+    expect(r.monthDelta).toBeCloseTo(2.0);
+  });
+
+  test('U8c — monthDelta is null when only one month has data', () => {
+    const entries = [makeEntry(3, 10)]; // only this month
+    const r = computeSentimentStats(entries);
+    expect(r.lastMonth.avg).toBeNull();
+    expect(r.monthDelta).toBeNull();
   });
 
   test('U9 — delta is negative when this week is lower than last', () => {
