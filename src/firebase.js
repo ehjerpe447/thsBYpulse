@@ -61,7 +61,6 @@ export const BUSINESS_UNITS = [
 
 export const LOCATIONS = [
   'Oak Brook, IL',
-  'Naperville, IL',
   'Plant Site',
   'Remote',
   'Other',
