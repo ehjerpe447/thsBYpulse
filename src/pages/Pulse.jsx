@@ -66,7 +66,7 @@ export default function Pulse() {
     <div className="space-y-8">
       <header className="space-y-2">
         <span className="chip">Daily Pulse</span>
-        <h1 className="text-2xl sm:text-3xl">How are planning workflows feeling today?</h1>
+        <h1 className="text-2xl sm:text-3xl">How are you feeling about planning with Blue Yonder today?</h1>
         <p className="text-sm text-brand-slate/80 max-w-xl">
           A quick sentiment check helps us see where the planning ecosystem is supporting you —
           and where it isn't. Tap an emoji to share your read.
