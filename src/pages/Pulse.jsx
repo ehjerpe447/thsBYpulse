@@ -11,6 +11,27 @@ const SCALE = [
   { value: 5, emoji: '😄', label: 'Energized' },
 ];
 
+// Best-effort once-per-calendar-day throttle. localStorage-based, so any
+// determined user could clear it or use incognito — this stops casual
+// double-submissions only. Server-side enforcement would require App Check
+// or anonymous auth + per-user records.
+const PULSE_KEY = 'tph_last_pulse_date_v1';
+
+const todayKey = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const hasPulsedToday = () => {
+  try { return localStorage.getItem(PULSE_KEY) === todayKey(); }
+  catch { return false; }
+};
+
+const markPulsedToday = () => {
+  try { localStorage.setItem(PULSE_KEY, todayKey()); }
+  catch { /* localStorage unavailable — throttle is best-effort */ }
+};
+
 export default function Pulse() {
   const [selected, setSelected] = useState(null);
   const [showContext, setShowContext] = useState(false);
@@ -20,6 +41,7 @@ export default function Pulse() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [alreadyPulsed, setAlreadyPulsed] = useState(hasPulsedToday);
 
   useEffect(() => {
     if (!submitted) return;
@@ -28,6 +50,7 @@ export default function Pulse() {
   }, [submitted]);
 
   const handleSelect = (value) => {
+    if (alreadyPulsed) return;
     setSelected(value);
     setShowContext(true);
     setSubmitted(false);
@@ -35,7 +58,7 @@ export default function Pulse() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selected) return;
+    if (!selected || alreadyPulsed) return;
     setSubmitting(true);
     setError('');
     try {
@@ -48,6 +71,8 @@ export default function Pulse() {
           timestamp: serverTimestamp(),
         }),
       );
+      markPulsedToday();
+      setAlreadyPulsed(true);
       setSubmitted(true);
       setShowContext(false);
       setSelected(null);
@@ -74,7 +99,14 @@ export default function Pulse() {
       </header>
 
       <section className="card">
-        <div className="grid grid-cols-5 gap-2 sm:gap-3">
+        {alreadyPulsed && !submitted && (
+          <div className="mb-5 flex items-center gap-2 rounded-lg bg-brand-green/5 border border-brand-green/15 px-4 py-3 text-sm text-brand-green">
+            <CheckCircle2 size={18} />
+            You've already shared your pulse today — see you tomorrow.
+          </div>
+        )}
+
+        <div className={`grid grid-cols-5 gap-2 sm:gap-3 ${alreadyPulsed ? 'opacity-50 pointer-events-none' : ''}`}>
           {SCALE.map(({ value, emoji, label }) => {
             const isActive = selected === value;
             return (
@@ -82,6 +114,7 @@ export default function Pulse() {
                 key={value}
                 type="button"
                 onClick={() => handleSelect(value)}
+                disabled={alreadyPulsed}
                 className={`group flex flex-col items-center gap-2 rounded-lg border px-2 py-4 sm:py-5 transition ${
                   isActive
                     ? 'border-brand-green bg-brand-green/5 shadow-card-hover'
