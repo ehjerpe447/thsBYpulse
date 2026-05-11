@@ -3,66 +3,7 @@
  * Firebase module is mocked globally in setup.js.
  */
 
-// ---------------------------------------------------------------------------
-// Helpers — mirror the private functions under test
-// ---------------------------------------------------------------------------
-
-// computeSentimentStats (from Admin.jsx)
-function computeSentimentStats(entries) {
-  const now = Date.now();
-  const DAY = 24 * 60 * 60 * 1000;
-  const WEEK = 7 * DAY;
-  const MONTH = 30 * DAY;
-
-  const withTime = entries
-    .map((e) => ({ ...e, ts: e.timestamp?.toMillis?.() }))
-    .filter((e) => e.ts);
-
-  const inRange = (start, end) =>
-    withTime.filter((e) => e.ts >= start && e.ts < end);
-
-  const avg = (arr) =>
-    arr.length ? arr.reduce((s, e) => s + (e.emoji || 0), 0) / arr.length : null;
-
-  const thisWeekEntries = inRange(now - WEEK, now);
-  const lastWeekEntries = inRange(now - 2 * WEEK, now - WEEK);
-  const thisWeek = { avg: avg(thisWeekEntries), count: thisWeekEntries.length };
-  const lastWeek = { avg: avg(lastWeekEntries), count: lastWeekEntries.length };
-  const delta =
-    thisWeek.avg != null && lastWeek.avg != null ? thisWeek.avg - lastWeek.avg : null;
-
-  const thisMonthEntries = inRange(now - MONTH, now);
-  const lastMonthEntries = inRange(now - 2 * MONTH, now - MONTH);
-  const thisMonth = { avg: avg(thisMonthEntries), count: thisMonthEntries.length };
-  const lastMonth = { avg: avg(lastMonthEntries), count: lastMonthEntries.length };
-  const monthDelta =
-    thisMonth.avg != null && lastMonth.avg != null ? thisMonth.avg - lastMonth.avg : null;
-
-  const daily14 = [];
-  for (let i = 13; i >= 0; i--) {
-    const start = now - (i + 1) * DAY;
-    const end   = now - i * DAY;
-    const day   = inRange(start, end);
-    const date  = new Date(end - DAY / 2);
-    daily14.push({ day: `${date.getMonth() + 1}/${date.getDate()}`, avg: avg(day), count: day.length });
-  }
-
-  const weekly12 = [];
-  for (let i = 11; i >= 0; i--) {
-    const start  = now - (i + 1) * WEEK;
-    const end    = now - i * WEEK;
-    const bucket = inRange(start, end);
-    const date   = new Date(start + WEEK / 2);
-    weekly12.push({ day: `${date.getMonth() + 1}/${date.getDate()}`, avg: avg(bucket), count: bucket.length });
-  }
-
-  return {
-    thisWeek, lastWeek, delta,
-    thisMonth, lastMonth, monthDelta,
-    daily14: daily14.some((d) => d.avg != null) ? daily14 : [],
-    weekly12: weekly12.some((d) => d.avg != null) ? weekly12 : [],
-  };
-}
+import { computeSentimentStats } from '../utils/analytics';
 
 // nextQuarter (from Admin.jsx)
 function nextQuarter(now = new Date()) {
