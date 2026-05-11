@@ -162,9 +162,9 @@ export default function Ideas() {
                       : 'border-brand-green/20 text-brand-green hover:bg-brand-green/5'
                   }`}
                   aria-pressed={voted.has(exactMatchIdea.id)}
-                  aria-label={voted.has(exactMatchIdea.id) ? 'Remove upvote' : 'Upvote'}
+                  aria-label={`${voted.has(exactMatchIdea.id) ? 'Remove upvote from' : 'Upvote'} "${exactMatchIdea.title}" (currently ${exactMatchIdea.upvotes || 0} votes)`}
                 >
-                  <ArrowUp size={14} strokeWidth={2.5} />
+                  <ArrowUp size={14} strokeWidth={2.5} aria-hidden="true" />
                   <span className="text-xs font-semibold">{exactMatchIdea.upvotes || 0}</span>
                 </button>
                 <span className="text-sm font-medium text-brand-green">{exactMatchIdea.title}</span>
@@ -277,9 +277,9 @@ function IdeaRow({ idea, hasVoted, onVote }) {
             : 'border-brand-green/20 text-brand-green hover:bg-brand-green/5'
         }`}
         aria-pressed={hasVoted}
-        aria-label={hasVoted ? 'Remove upvote' : 'Upvote'}
+        aria-label={`${hasVoted ? 'Remove upvote from' : 'Upvote'} "${idea.title}" (currently ${idea.upvotes || 0} votes)`}
       >
-        <ArrowUp size={16} strokeWidth={2.5} />
+        <ArrowUp size={16} strokeWidth={2.5} aria-hidden="true" />
         <span className="text-sm font-semibold">{idea.upvotes || 0}</span>
       </button>
       <div className="flex-1 min-w-0">
