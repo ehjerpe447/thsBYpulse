@@ -122,7 +122,7 @@ function AdminConsole({ user }) {
   const [promoting, setPromoting] = useState(null);
   const [promoteError, setPromoteError] = useState('');
   const [snapshotError, setSnapshotError] = useState('');
-  const [chartRange, setChartRange] = useState('14d');
+  const [view, setView] = useState('near'); // 'near' | 'long'
 
   useEffect(() => {
     const onError = (err) => {
@@ -167,10 +167,32 @@ function AdminConsole({ user }) {
           <h1 className="text-2xl mt-2">Planning Pulse Insights</h1>
           <p className="text-xs text-brand-slate/70 mt-1">Signed in as {user.email}</p>
         </div>
-        <button onClick={() => signOut(auth)} className="btn-ghost">
-          <LogOut size={15} />
-          Sign out
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="inline-flex rounded-lg border border-brand-green/15 bg-white p-0.5">
+            <button
+              type="button"
+              onClick={() => setView('near')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
+                view === 'near' ? 'bg-brand-green text-white' : 'text-brand-slate hover:text-brand-green'
+              }`}
+            >
+              Near-term
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('long')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
+                view === 'long' ? 'bg-brand-green text-white' : 'text-brand-slate hover:text-brand-green'
+              }`}
+            >
+              Long-term
+            </button>
+          </div>
+          <button onClick={() => signOut(auth)} className="btn-ghost">
+            <LogOut size={15} />
+            Sign out
+          </button>
+        </div>
       </header>
 
       {snapshotError && (
@@ -179,49 +201,41 @@ function AdminConsole({ user }) {
         </div>
       )}
 
-      <section className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <ScoreCard
-          label="This week"
-          score={stats.thisWeek.avg}
-          count={stats.thisWeek.count}
-          delta={stats.delta}
-          deltaLabel="vs. last week"
-        />
-        <ScoreCard
-          label="This month"
-          score={stats.thisMonth.avg}
-          count={stats.thisMonth.count}
-          delta={stats.monthDelta}
-          deltaLabel="vs. prior month"
-        />
+      <section className="grid sm:grid-cols-3 gap-3">
+        {view === 'near' ? (
+          <ScoreCard
+            label="This week"
+            score={stats.thisWeek.avg}
+            count={stats.thisWeek.count}
+            delta={stats.delta}
+            deltaLabel="vs. last week"
+          />
+        ) : (
+          <ScoreCard
+            label="This month"
+            score={stats.thisMonth.avg}
+            count={stats.thisMonth.count}
+            delta={stats.monthDelta}
+            deltaLabel="vs. prior month"
+          />
+        )}
         <MetricCard label="Total responses" value={sentiment.length} />
         <MetricCard label="Ideas in queue" value={queue.length} />
       </section>
 
       <section className="card space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <h2 className="text-base">Sentiment trend</h2>
-          <div className="flex items-center gap-1 rounded-lg border border-brand-green/15 bg-white p-0.5">
-            {[['14d', '14 days'], ['30d', '30 days'], ['90d', '90 days']].map(([val, label]) => (
-              <button
-                key={val}
-                type="button"
-                onClick={() => setChartRange(val)}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition ${
-                  chartRange === val
-                    ? 'bg-brand-green text-white'
-                    : 'text-brand-slate hover:text-brand-green'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base">Sentiment trend</h2>
+            <p className="text-xs text-brand-slate/60 mt-0.5">
+              {view === 'near' ? 'Daily avg · last 14 days' : 'Weekly avg · last 12 weeks'}
+            </p>
           </div>
         </div>
         <div className="h-64">
-          {(chartRange === '14d' ? stats.daily14 : chartRange === '30d' ? stats.daily30 : stats.daily90).length > 0 ? (
+          {(view === 'near' ? stats.daily14 : stats.weekly12).length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartRange === '14d' ? stats.daily14 : chartRange === '30d' ? stats.daily30 : stats.daily90}>
+              <LineChart data={view === 'near' ? stats.daily14 : stats.weekly12}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis
                   dataKey="day"
@@ -229,7 +243,6 @@ function AdminConsole({ user }) {
                   stroke="#4A4A4A"
                   tickLine={false}
                   axisLine={false}
-                  interval={chartRange === '14d' ? 1 : chartRange === '30d' ? 4 : 13}
                 />
                 <YAxis
                   domain={[1, 5]}
@@ -251,7 +264,7 @@ function AdminConsole({ user }) {
                   dataKey="avg"
                   stroke="#004A29"
                   strokeWidth={2.5}
-                  dot={chartRange === '14d' ? { fill: '#004A29', r: 3 } : false}
+                  dot={{ fill: '#004A29', r: 3 }}
                   activeDot={{ r: 5 }}
                 />
               </LineChart>
@@ -477,28 +490,38 @@ function computeSentimentStats(entries) {
   const monthDelta =
     thisMonth.avg != null && lastMonth.avg != null ? thisMonth.avg - lastMonth.avg : null;
 
-  // Build daily buckets for a given number of days
-  const buildDaily = (days) => {
-    const data = [];
-    for (let i = days - 1; i >= 0; i--) {
-      const start = now - (i + 1) * DAY;
-      const end = now - i * DAY;
-      const day = inRange(start, end);
-      const date = new Date(end - DAY / 2);
-      data.push({
-        day: `${date.getMonth() + 1}/${date.getDate()}`,
-        avg: avg(day),
-        count: day.length,
-      });
-    }
-    return data.some((d) => d.avg != null) ? data : [];
-  };
+  // 14-day daily buckets
+  const daily14 = [];
+  for (let i = 13; i >= 0; i--) {
+    const start = now - (i + 1) * DAY;
+    const end   = now - i * DAY;
+    const day   = inRange(start, end);
+    const date  = new Date(end - DAY / 2);
+    daily14.push({
+      day:   `${date.getMonth() + 1}/${date.getDate()}`,
+      avg:   avg(day),
+      count: day.length,
+    });
+  }
+
+  // 12-week weekly buckets
+  const weekly12 = [];
+  for (let i = 11; i >= 0; i--) {
+    const start  = now - (i + 1) * WEEK;
+    const end    = now - i * WEEK;
+    const bucket = inRange(start, end);
+    const date   = new Date(start + WEEK / 2);
+    weekly12.push({
+      day:   `${date.getMonth() + 1}/${date.getDate()}`,
+      avg:   avg(bucket),
+      count: bucket.length,
+    });
+  }
 
   return {
     thisWeek, lastWeek, delta,
     thisMonth, lastMonth, monthDelta,
-    daily14: buildDaily(14),
-    daily30: buildDaily(30),
-    daily90: buildDaily(90),
+    daily14: daily14.some((d) => d.avg != null) ? daily14 : [],
+    weekly12: weekly12.some((d) => d.avg != null) ? weekly12 : [],
   };
 }

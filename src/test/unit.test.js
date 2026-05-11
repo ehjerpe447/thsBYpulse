@@ -38,28 +38,29 @@ function computeSentimentStats(entries) {
   const monthDelta =
     thisMonth.avg != null && lastMonth.avg != null ? thisMonth.avg - lastMonth.avg : null;
 
-  const buildDaily = (days) => {
-    const data = [];
-    for (let i = days - 1; i >= 0; i--) {
-      const start = now - (i + 1) * DAY;
-      const end = now - i * DAY;
-      const day = inRange(start, end);
-      const date = new Date(end - DAY / 2);
-      data.push({
-        day: `${date.getMonth() + 1}/${date.getDate()}`,
-        avg: avg(day),
-        count: day.length,
-      });
-    }
-    return data.some((d) => d.avg != null) ? data : [];
-  };
+  const daily14 = [];
+  for (let i = 13; i >= 0; i--) {
+    const start = now - (i + 1) * DAY;
+    const end   = now - i * DAY;
+    const day   = inRange(start, end);
+    const date  = new Date(end - DAY / 2);
+    daily14.push({ day: `${date.getMonth() + 1}/${date.getDate()}`, avg: avg(day), count: day.length });
+  }
+
+  const weekly12 = [];
+  for (let i = 11; i >= 0; i--) {
+    const start  = now - (i + 1) * WEEK;
+    const end    = now - i * WEEK;
+    const bucket = inRange(start, end);
+    const date   = new Date(start + WEEK / 2);
+    weekly12.push({ day: `${date.getMonth() + 1}/${date.getDate()}`, avg: avg(bucket), count: bucket.length });
+  }
 
   return {
     thisWeek, lastWeek, delta,
     thisMonth, lastMonth, monthDelta,
-    daily14: buildDaily(14),
-    daily30: buildDaily(30),
-    daily90: buildDaily(90),
+    daily14: daily14.some((d) => d.avg != null) ? daily14 : [],
+    weekly12: weekly12.some((d) => d.avg != null) ? weekly12 : [],
   };
 }
 
@@ -192,6 +193,14 @@ describe('computeSentimentStats', () => {
     const r = computeSentimentStats(entries);
     expect(r.lastMonth.avg).toBeNull();
     expect(r.monthDelta).toBeNull();
+  });
+
+  test('U8d — weekly12 produces 12 buckets each covering one week', () => {
+    // One entry per week midpoint for 12 weeks
+    const entries = Array.from({ length: 12 }, (_, i) => makeEntry(3, (i + 0.5) * 7));
+    const r = computeSentimentStats(entries);
+    expect(r.weekly12).toHaveLength(12);
+    r.weekly12.forEach((w) => expect(w.avg).not.toBeNull());
   });
 
   test('U9 — delta is negative when this week is lower than last', () => {
