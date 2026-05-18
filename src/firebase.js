@@ -62,6 +62,15 @@ export const COLLECTIONS = {
   ROADMAP: 'roadmap_items',
 };
 
+// Blue Yonder modules — shown on the Pulse "Recommended context" tier.
+export const MODULES = [
+  'Demand',
+  'ESP',
+  'MEIO',
+  'Analytics',
+  'Other',
+];
+
 export const ROLES = [
   'Leader',
   'Demand Planner',
@@ -75,6 +84,7 @@ export const ROLES = [
   'Other',
 ];
 
+// Stored on entries as the `bu` field; displayed in the UI as "Growth Unit".
 export const BUSINESS_UNITS = [
   'Coffee+Creamer',
   'BS&C',

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ChevronDown, Lock, Send, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, Lock, Send, CheckCircle2, Sparkles } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db, COLLECTIONS, ROLES, BUSINESS_UNITS, LOCATIONS, withTimeout } from '../firebase';
+import { db, COLLECTIONS, MODULES, ROLES, BUSINESS_UNITS, LOCATIONS, withTimeout } from '../firebase';
 
 const SCALE = [
   { value: 1, emoji: '😞', label: 'Frustrated' },
@@ -35,6 +35,7 @@ const markPulsedToday = () => {
 export default function Pulse() {
   const [selected, setSelected] = useState(null);
   const [showContext, setShowContext] = useState(false);
+  const [selectedModule, setSelectedModule] = useState('');
   const [role, setRole] = useState('');
   const [location, setLocation] = useState('');
   const [bu, setBu] = useState('');
@@ -65,6 +66,7 @@ export default function Pulse() {
       await withTimeout(
         addDoc(collection(db, COLLECTIONS.SENTIMENT), {
           emoji: selected,
+          module: selectedModule || null,
           role: role || null,
           location: location || null,
           bu: bu || null,
@@ -76,6 +78,7 @@ export default function Pulse() {
       setSubmitted(true);
       setShowContext(false);
       setSelected(null);
+      setSelectedModule('');
       setRole('');
       setLocation('');
       setBu('');
@@ -144,55 +147,91 @@ export default function Pulse() {
           }`}
         >
           <div className="overflow-hidden">
-            <form onSubmit={handleSubmit} className="space-y-4 border-t border-brand-green/10 pt-5">
-              <div className="flex items-center gap-2 text-xs text-brand-slate/70">
-                <ChevronDown size={14} className="text-brand-green" />
-                <span>Optional context — helps us spot patterns by team.</span>
+            <form onSubmit={handleSubmit} className="space-y-5 border-t border-brand-green/10 pt-5">
+              {/* Tier 1 — Recommended context */}
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={14} className="text-brand-green" />
+                  <span className="text-xs font-semibold uppercase tracking-wide text-brand-green">
+                    Recommended context
+                  </span>
+                </div>
+                <p className="text-xs text-brand-slate/70">
+                  Which module is your read mostly about? Helps us route feedback to the right team.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <Field label="Module">
+                    <select
+                      value={selectedModule}
+                      onChange={(e) => setSelectedModule(e.target.value)}
+                      className="input appearance-none"
+                    >
+                      <option value="">Select a module…</option>
+                      {MODULES.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <Field label="Role">
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="input appearance-none"
-                  >
-                    <option value="">Skip</option>
-                    {ROLES.map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Location">
-                  <select
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="input appearance-none"
-                  >
-                    <option value="">Skip</option>
-                    {LOCATIONS.map((l) => (
-                      <option key={l} value={l}>
-                        {l}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Business Unit">
-                  <select
-                    value={bu}
-                    onChange={(e) => setBu(e.target.value)}
-                    className="input appearance-none"
-                  >
-                    <option value="">Skip</option>
-                    {BUSINESS_UNITS.map((b) => (
-                      <option key={b} value={b}>
-                        {b}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+              {/* Tier 2 — Optional context */}
+              <div className="space-y-2.5 border-t border-brand-green/10 pt-4">
+                <div className="flex items-center gap-2">
+                  <ChevronDown size={14} className="text-brand-green" />
+                  <span className="text-xs font-semibold uppercase tracking-wide text-brand-slate/70">
+                    Optional context
+                  </span>
+                </div>
+                <p className="text-xs text-brand-slate/70">
+                  Helps us spot patterns by team.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <Field label="Role">
+                    <select
+                      value={role}
+                      onChange={(e) => setRole(e.target.value)}
+                      className="input appearance-none"
+                    >
+                      <option value="">Skip</option>
+                      {ROLES.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Growth Unit">
+                    <select
+                      value={bu}
+                      onChange={(e) => setBu(e.target.value)}
+                      className="input appearance-none"
+                    >
+                      <option value="">Skip</option>
+                      {BUSINESS_UNITS.map((b) => (
+                        <option key={b} value={b}>
+                          {b}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Location">
+                    <select
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      className="input appearance-none"
+                    >
+                      <option value="">Skip</option>
+                      {LOCATIONS.map((l) => (
+                        <option key={l} value={l}>
+                          {l}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
               </div>
 
               {error && (

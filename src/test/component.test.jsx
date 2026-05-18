@@ -13,6 +13,7 @@ vi.mock('../firebase', () => ({
     FEATURES:  'feature_requests',
     ROADMAP:   'roadmap_items',
   },
+  MODULES:        ['Demand', 'ESP', 'Other'],
   ROLES:          ['Leader', 'Demand Planner', 'Other'],
   BUSINESS_UNITS: ['Coffee+Creamer', 'BS&C'],
   LOCATIONS:      ['Oak Brook, IL', 'Remote'],
@@ -97,6 +98,16 @@ describe('Pulse', () => {
     await user.click(screen.getByRole('button', { name: /submit pulse/i }));
     await waitFor(() => expect(addDoc).toHaveBeenCalledTimes(1));
     expect(addDoc.mock.calls[0][1].emoji).toBe(4);
+  });
+
+  test('C3b — submit includes the selected module', async () => {
+    const user = userEvent.setup();
+    render(<Pulse />);
+    await user.click(screen.getByRole('button', { name: /positive/i }));
+    await user.selectOptions(screen.getByLabelText(/module/i), 'ESP');
+    await user.click(screen.getByRole('button', { name: /submit pulse/i }));
+    await waitFor(() => expect(addDoc).toHaveBeenCalledTimes(1));
+    expect(addDoc.mock.calls[0][1].module).toBe('ESP');
   });
 
   test('C4 — submit success shows thank-you banner', async () => {
