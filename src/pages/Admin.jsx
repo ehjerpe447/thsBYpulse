@@ -462,9 +462,10 @@ function PromoteModal({ idea, onClose, onSubmit, error }) {
 }
 
 const BREAKDOWN_DIMS = [
+  { key: 'module',   label: 'Module' },
   { key: 'role',     label: 'Role' },
+  { key: 'bu',       label: 'Growth Unit' },
   { key: 'location', label: 'Location' },
-  { key: 'bu',       label: 'Business Unit' },
 ];
 
 function DemographicBreakdown({ sentiment, view }) {
