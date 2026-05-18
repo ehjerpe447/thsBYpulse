@@ -23,3 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Local environment — never commit secrets
+.env
+.env.local
+
+# Firebase service account keys — never commit
+*-firebase-adminsdk-*.json
+serviceAccount*.json
