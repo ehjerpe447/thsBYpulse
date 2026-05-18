@@ -17,6 +17,7 @@ vi.mock('../firebase', () => ({
   ROLES:          ['Leader', 'Demand Planner', 'Other'],
   BUSINESS_UNITS: ['Coffee+Creamer', 'BS&C'],
   LOCATIONS:      ['Oak Brook, IL', 'Remote'],
+  TEAM_SIZE:      80,
   withTimeout:    vi.fn((p) => p),
 }));
 

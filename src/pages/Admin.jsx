@@ -30,8 +30,8 @@ import {
   Rocket,
   X,
 } from 'lucide-react';
-import { auth, db, COLLECTIONS, MODULES, withTimeout } from '../firebase';
-import { computeSentimentStats, computeSegmentBreakdown } from '../utils/analytics';
+import { auth, db, COLLECTIONS, MODULES, TEAM_SIZE, withTimeout } from '../firebase';
+import { computeSentimentStats, computeSegmentBreakdown, computeParticipation } from '../utils/analytics';
 
 export default function Admin() {
   const [user, setUser] = useState(null);
@@ -152,6 +152,7 @@ function AdminConsole({ user }) {
   }, []);
 
   const stats = useMemo(() => computeSentimentStats(sentiment), [sentiment]);
+  const participation = computeParticipation(stats.thisWeek.count, TEAM_SIZE);
   const onRoadmapIds = useMemo(() => new Set(roadmap.map((r) => r.featureId)), [roadmap]);
   const queue = useMemo(
     () =>
@@ -207,7 +208,7 @@ function AdminConsole({ user }) {
         </div>
       )}
 
-      <section className="grid sm:grid-cols-3 gap-3">
+      <section className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {view === 'near' ? (
           <ScoreCard
             label="This week"
@@ -225,6 +226,11 @@ function AdminConsole({ user }) {
             deltaLabel="vs. prior month"
           />
         )}
+        <ParticipationCard
+          pctOfTarget={participation.pctOfTarget}
+          dailyParticipation={participation.dailyParticipation}
+          weeklyCount={stats.thisWeek.count}
+        />
         <MetricCard label="Total responses" value={sentiment.length} />
         <MetricCard label="Ideas in queue" value={queue.length} />
       </section>
@@ -396,6 +402,32 @@ function ScoreCard({ label, score, count, delta, deltaLabel = 'vs. last week' })
         {delta == null
           ? 'No prior period'
           : `${delta >= 0 ? '+' : ''}${delta.toFixed(2)} ${deltaLabel}`}
+      </div>
+    </div>
+  );
+}
+
+function ParticipationCard({ pctOfTarget, dailyParticipation, weeklyCount }) {
+  const tone =
+    pctOfTarget == null ? 'text-brand-slate/60'
+    : pctOfTarget >= 80 ? 'text-brand-leaf'
+    : pctOfTarget >= 40 ? 'text-amber-600'
+    :                     'text-red-600';
+  return (
+    <div className="card">
+      <div className="text-[11px] uppercase tracking-wider text-brand-slate/60 font-semibold">
+        Participation
+      </div>
+      <div className="mt-1 flex items-baseline gap-2">
+        <span className={`text-3xl font-semibold ${tone}`}>
+          {pctOfTarget != null ? `${Math.round(pctOfTarget)}%` : '—'}
+        </span>
+        <span className="text-xs text-brand-slate/60">of weekly target</span>
+      </div>
+      <div className="mt-1 text-xs text-brand-slate/55">
+        {pctOfTarget != null
+          ? `${Math.round(dailyParticipation)}% avg daily · ${weeklyCount} ${weeklyCount === 1 ? 'rating' : 'ratings'} in the last 7 days`
+          : 'Set TEAM_SIZE to enable'}
       </div>
     </div>
   );

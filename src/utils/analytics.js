@@ -11,6 +11,9 @@ const DAY   = 24 * 60 * 60 * 1000;
 const WEEK  = 7  * DAY;
 const MONTH = 30 * DAY;
 
+const WORKDAYS_PER_WEEK      = 5;
+const WEEKLY_TARGET_PER_USER = 1; // pulse ratings per planner per week
+
 const avg = (arr) =>
   arr.length ? arr.reduce((s, e) => s + (e.emoji || 0), 0) / arr.length : null;
 
@@ -116,4 +119,21 @@ export function computeSegmentBreakdown(entries, dimension, windowMs) {
       };
     })
     .sort((a, b) => (a.avg ?? 999) - (b.avg ?? 999));
+}
+
+/**
+ * Participation vs. target. Target = WEEKLY_TARGET_PER_USER pulse ratings
+ * per planner per week. `pctOfTarget` reaches 100 when the trailing week's
+ * rating count equals the target total (teamSize × target).
+ * `dailyParticipation` is the equivalent average daily rate across a
+ * 5-day work week — e.g. 50% of target ↔ 10% average daily participation.
+ */
+export function computeParticipation(weeklyCount, teamSize) {
+  if (!teamSize || teamSize <= 0) {
+    return { pctOfTarget: null, dailyParticipation: null };
+  }
+  const target = teamSize * WEEKLY_TARGET_PER_USER;
+  const pctOfTarget = (weeklyCount / target) * 100;
+  const dailyParticipation = pctOfTarget / WORKDAYS_PER_WEEK;
+  return { pctOfTarget, dailyParticipation };
 }

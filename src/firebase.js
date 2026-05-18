@@ -99,3 +99,7 @@ export const LOCATIONS = [
   'Remote',
   'Other',
 ];
+
+// Addressable planner headcount — the denominator for the Admin
+// participation metric. Update this when the planning org changes size.
+export const TEAM_SIZE = 80;

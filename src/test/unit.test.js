@@ -3,7 +3,7 @@
  * Firebase module is mocked globally in setup.js.
  */
 
-import { computeSentimentStats } from '../utils/analytics';
+import { computeSentimentStats, computeParticipation } from '../utils/analytics';
 
 // nextQuarter (from Admin.jsx)
 function nextQuarter(now = new Date()) {
@@ -152,6 +152,29 @@ describe('computeSentimentStats', () => {
     const r = computeSentimentStats(entries);
     expect(r.delta).toBeCloseTo(-2.0);
     expect(r.delta).toBeLessThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeParticipation — U20–U22
+// ---------------------------------------------------------------------------
+
+describe('computeParticipation', () => {
+  test('U20 — at target: weekly count equals team size → 100%, 20% daily', () => {
+    const r = computeParticipation(80, 80);
+    expect(r.pctOfTarget).toBeCloseTo(100);
+    expect(r.dailyParticipation).toBeCloseTo(20);
+  });
+
+  test('U21 — half target → 50% of target, 10% avg daily', () => {
+    const r = computeParticipation(40, 80);
+    expect(r.pctOfTarget).toBeCloseTo(50);
+    expect(r.dailyParticipation).toBeCloseTo(10);
+  });
+
+  test('U22 — zero or missing team size returns nulls', () => {
+    expect(computeParticipation(40, 0).pctOfTarget).toBeNull();
+    expect(computeParticipation(40, 0).dailyParticipation).toBeNull();
   });
 });
 
