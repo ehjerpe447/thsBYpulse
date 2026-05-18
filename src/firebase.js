@@ -103,3 +103,13 @@ export const LOCATIONS = [
 // Addressable planner headcount — the denominator for the Admin
 // participation metric. Update this when the planning org changes size.
 export const TEAM_SIZE = 80;
+
+// Idea lifecycle states, in lifecycle order. `badge` holds the Tailwind
+// classes for the status chip shown on idea cards.
+export const IDEA_STATUSES = [
+  { value: 'under_review', label: 'Under Review', badge: 'bg-brand-slate/10 text-brand-slate' },
+  { value: 'planned',      label: 'Planned',      badge: 'bg-brand-gold/15 text-brand-gold' },
+  { value: 'in_progress',  label: 'In Progress',  badge: 'bg-blue-100 text-blue-700' },
+  { value: 'shipped',      label: 'Shipped',      badge: 'bg-brand-leaf/25 text-brand-green' },
+  { value: 'declined',     label: 'Declined',     badge: 'bg-red-100 text-red-700' },
+];

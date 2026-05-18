@@ -11,7 +11,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { ArrowUp, Plus, Search, TrendingUp, Clock, Sparkles } from 'lucide-react';
-import { db, COLLECTIONS, MODULES, withTimeout } from '../firebase';
+import { db, COLLECTIONS, MODULES, IDEA_STATUSES, withTimeout } from '../firebase';
 
 const VOTE_KEY = 'tph_voted_ideas_v1';
 
@@ -61,7 +61,7 @@ export default function Ideas() {
   }, [ideas, search]);
 
   const visible = useMemo(() => {
-    const list = [...ideas];
+    const list = ideas.filter((i) => i.status !== 'declined');
     if (sortBy === 'top') {
       list.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
     } else {
@@ -73,6 +73,11 @@ export default function Ideas() {
     }
     return list;
   }, [ideas, sortBy]);
+
+  const declined = useMemo(
+    () => ideas.filter((i) => i.status === 'declined'),
+    [ideas],
+  );
 
   const exactMatchIdea = useMemo(
     () => ideas.find((i) => i.title?.trim().toLowerCase() === search.trim().toLowerCase()),
@@ -93,7 +98,7 @@ export default function Ideas() {
           description: draftDescription.trim(),
           module: draftModule || null,
           upvotes: 1,
-          status: 'queue',
+          status: 'under_review',
           createdAt: serverTimestamp(),
         }),
       );
@@ -232,7 +237,7 @@ export default function Ideas() {
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-brand-slate/70">
-            {visible.length} {visible.length === 1 ? 'idea' : 'ideas'} in the queue
+            {visible.length} {visible.length === 1 ? 'idea' : 'ideas'}
           </h2>
           <div className="inline-flex rounded-lg border border-brand-green/15 bg-white p-0.5">
             <SortBtn active={sortBy === 'top'} onClick={() => setSortBy('top')} icon={TrendingUp}>
@@ -263,6 +268,28 @@ export default function Ideas() {
           </ul>
         )}
       </section>
+
+      {declined.length > 0 && (
+        <details className="card">
+          <summary className="cursor-pointer select-none text-sm font-semibold text-brand-slate/70">
+            Reviewed — not planned ({declined.length})
+          </summary>
+          <ul className="mt-3 space-y-3">
+            {declined.map((idea) => (
+              <li key={idea.id} className="border-l-2 border-red-200 pl-3">
+                <h3 className="text-sm font-semibold text-brand-slate line-through decoration-brand-slate/30">
+                  {idea.title}
+                </h3>
+                {idea.declineReason && (
+                  <p className="mt-0.5 text-xs text-brand-slate/70">
+                    <span className="font-medium">Why:</span> {idea.declineReason}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   );
 }
@@ -279,6 +306,18 @@ function SortBtn({ active, onClick, icon: Icon, children }) {
       <Icon size={13} />
       {children}
     </button>
+  );
+}
+
+// Status chip — omitted for the default "under_review" so the common
+// case stays visually quiet.
+function StatusBadge({ status }) {
+  const meta = IDEA_STATUSES.find((s) => s.value === status);
+  if (!meta || meta.value === 'under_review') return null;
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${meta.badge}`}>
+      {meta.label}
+    </span>
   );
 }
 
@@ -307,11 +346,7 @@ function IdeaRow({ idea, hasVoted, onVote }) {
               {idea.module}
             </span>
           )}
-          {idea.status === 'roadmap' && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-brand-gold/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-gold">
-              On roadmap
-            </span>
-          )}
+          <StatusBadge status={idea.status} />
         </div>
         {idea.description && (
           <p className="mt-1 text-sm text-brand-slate/80 line-clamp-3">{idea.description}</p>

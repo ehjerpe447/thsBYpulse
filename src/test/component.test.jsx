@@ -18,6 +18,13 @@ vi.mock('../firebase', () => ({
   BUSINESS_UNITS: ['Coffee+Creamer', 'BS&C'],
   LOCATIONS:      ['Oak Brook, IL', 'Remote'],
   TEAM_SIZE:      80,
+  IDEA_STATUSES: [
+    { value: 'under_review', label: 'Under Review', badge: 'bg-brand-slate/10 text-brand-slate' },
+    { value: 'planned',      label: 'Planned',      badge: 'bg-brand-gold/15 text-brand-gold' },
+    { value: 'in_progress',  label: 'In Progress',  badge: 'bg-blue-100 text-blue-700' },
+    { value: 'shipped',      label: 'Shipped',      badge: 'bg-brand-leaf/25 text-brand-green' },
+    { value: 'declined',     label: 'Declined',     badge: 'bg-red-100 text-red-700' },
+  ],
   withTimeout:    vi.fn((p) => p),
 }));
 
@@ -244,7 +251,7 @@ describe('Ideas', () => {
     await waitFor(() => expect(addDoc).toHaveBeenCalledTimes(1));
     expect(addDoc.mock.calls[0][1]).toMatchObject({
       title:  'Totally new idea',
-      status: 'queue',
+      status: 'under_review',
     });
   });
 
@@ -259,6 +266,19 @@ describe('Ideas', () => {
     await user.click(screen.getByRole('button', { name: /submit/i }));
     await waitFor(() => expect(addDoc).toHaveBeenCalledTimes(1));
     expect(addDoc.mock.calls[0][1].module).toBe('ESP');
+  });
+
+  test('C18 — declined ideas are routed to a separate reviewed section', async () => {
+    onSnapshot.mockImplementation((q, cb) => {
+      cb(makeSnap([
+        { title: 'Active idea',  upvotes: 3, status: 'under_review' },
+        { title: 'Rejected one', upvotes: 1, status: 'declined', declineReason: 'Out of scope' },
+      ]));
+      return unsub;
+    });
+    render(<Ideas />);
+    await waitFor(() => screen.getByText('Active idea'));
+    expect(screen.getByText(/not planned \(1\)/i)).toBeInTheDocument();
   });
 
   test('C13 — upvoting an idea calls updateDoc', async () => {
