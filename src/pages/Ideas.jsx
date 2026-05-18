@@ -125,8 +125,9 @@ export default function Ideas() {
     <div className="space-y-7">
       <header className="space-y-2">
         <span className="chip">Idea Lab</span>
-        <h1 className="text-2xl sm:text-3xl">What should we build next?</h1>
+        <h1 className="text-2xl sm:text-3xl">What should we improve or build next?</h1>
         <p className="text-sm text-brand-slate/80 max-w-xl">
+          Suggestions can be a system, process, training, or any other change.
           Search to see if your idea already exists — upvote it if so, or submit a new one.
         </p>
       </header>

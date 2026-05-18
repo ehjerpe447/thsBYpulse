@@ -161,7 +161,7 @@ describe('Ideas', () => {
   test('C7 — renders heading and search input', () => {
     render(<Ideas />);
     expect(
-      screen.getByRole('heading', { name: /what should we build next/i }),
+      screen.getByRole('heading', { name: /what should we improve or build next/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByPlaceholderText(/better demand forecast/i),
