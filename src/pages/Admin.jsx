@@ -29,9 +29,50 @@ import {
   Minus,
   Rocket,
   X,
+  Download,
 } from 'lucide-react';
 import { auth, db, COLLECTIONS, MODULES, TEAM_SIZE, withTimeout } from '../firebase';
 import { computeSentimentStats, computeSegmentBreakdown, computeParticipation } from '../utils/analytics';
+import { toCsv } from '../utils/csv';
+
+// ── CSV export ───────────────────────────────────────────────────────────────
+
+function isoFromTs(ts) {
+  const ms = ts?.toMillis?.();
+  return ms ? new Date(ms).toISOString() : '';
+}
+
+const SENTIMENT_COLUMNS = [
+  { label: 'Timestamp',   get: (e) => isoFromTs(e.timestamp) },
+  { label: 'Score',       key: 'emoji' },
+  { label: 'Module',      key: 'module' },
+  { label: 'Role',        key: 'role' },
+  { label: 'Growth Unit', key: 'bu' },
+  { label: 'Location',    key: 'location' },
+  { label: 'Comment',     key: 'comment' },
+];
+
+const IDEA_COLUMNS = [
+  { label: 'Title',       key: 'title' },
+  { label: 'Description', key: 'description' },
+  { label: 'Module',      key: 'module' },
+  { label: 'Upvotes',     key: 'upvotes' },
+  { label: 'Status',      key: 'status' },
+  { label: 'Created',     get: (e) => isoFromTs(e.createdAt) },
+];
+
+function downloadCsv(filename, csv) {
+  // Leading BOM so Excel reads the UTF-8 content correctly.
+  const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 export default function Admin() {
   const [user, setUser] = useState(null);
@@ -166,6 +207,12 @@ function AdminConsole({ user }) {
     [queue, queueModule],
   );
 
+  const stamp = () => new Date().toISOString().slice(0, 10);
+  const exportSentiment = () =>
+    downloadCsv(`planning-pulse-sentiment-${stamp()}.csv`, toCsv(sentiment, SENTIMENT_COLUMNS));
+  const exportIdeas = () =>
+    downloadCsv(`planning-pulse-ideas-${stamp()}.csv`, toCsv(features, IDEA_COLUMNS));
+
   return (
     <div className="space-y-7">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -207,6 +254,27 @@ function AdminConsole({ user }) {
           {snapshotError}
         </div>
       )}
+
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={exportSentiment}
+          disabled={sentiment.length === 0}
+          className="btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Download size={15} />
+          Sentiment CSV
+        </button>
+        <button
+          type="button"
+          onClick={exportIdeas}
+          disabled={features.length === 0}
+          className="btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Download size={15} />
+          Ideas CSV
+        </button>
+      </div>
 
       <section className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {view === 'near' ? (

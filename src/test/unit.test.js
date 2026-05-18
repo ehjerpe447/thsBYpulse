@@ -4,6 +4,7 @@
  */
 
 import { computeSentimentStats, computeParticipation } from '../utils/analytics';
+import { toCsv } from '../utils/csv';
 
 // nextQuarter (from Admin.jsx)
 function nextQuarter(now = new Date()) {
@@ -175,6 +176,37 @@ describe('computeParticipation', () => {
   test('U22 — zero or missing team size returns nulls', () => {
     expect(computeParticipation(40, 0).pctOfTarget).toBeNull();
     expect(computeParticipation(40, 0).dailyParticipation).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toCsv — U23–U27
+// ---------------------------------------------------------------------------
+
+describe('toCsv', () => {
+  const cols = [
+    { label: 'Name', key: 'name' },
+    { label: 'Note', key: 'note' },
+  ];
+
+  test('U23 — header plus rows, CRLF separated', () => {
+    expect(toCsv([{ name: 'Ann', note: 'ok' }], cols)).toBe('Name,Note\r\nAnn,ok');
+  });
+
+  test('U24 — fields with commas are quoted', () => {
+    expect(toCsv([{ name: 'Ann', note: 'a, b, c' }], cols)).toBe('Name,Note\r\nAnn,"a, b, c"');
+  });
+
+  test('U25 — embedded quotes are doubled and wrapped', () => {
+    expect(toCsv([{ name: 'Ann', note: 'say "hi"' }], cols)).toBe('Name,Note\r\nAnn,"say ""hi"""');
+  });
+
+  test('U26 — newlines force quoting; null becomes empty', () => {
+    expect(toCsv([{ name: null, note: 'line1\nline2' }], cols)).toBe('Name,Note\r\n,"line1\nline2"');
+  });
+
+  test('U27 — derived columns via get()', () => {
+    expect(toCsv([{ a: 2, b: 3 }], [{ label: 'Sum', get: (r) => r.a + r.b }])).toBe('Sum\r\n5');
   });
 });
 
