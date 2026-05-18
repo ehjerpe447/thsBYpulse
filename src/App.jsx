@@ -35,7 +35,7 @@ export default function App() {
       </main>
       {!isAdmin && <BottomNav />}
       <footer className="hidden md:block border-t border-brand-green/10 py-6 text-center text-xs text-brand-slate/60">
-        TreeHouse Planning Pulse · Internal feedback platform · Anonymous by default
+        TreeHouse Planning Pulse · Internal feedback platform · Anonymous by default · © {new Date().getFullYear()} Erik Hjerpe
       </footer>
     </div>
   );
