@@ -110,6 +110,19 @@ describe('Pulse', () => {
     expect(addDoc.mock.calls[0][1].module).toBe('ESP');
   });
 
+  test('C3c — submit includes the comment text', async () => {
+    const user = userEvent.setup();
+    render(<Pulse />);
+    await user.click(screen.getByRole('button', { name: /positive/i }));
+    await user.type(
+      screen.getByPlaceholderText(/driving your rating/i),
+      'ESP is too slow to load',
+    );
+    await user.click(screen.getByRole('button', { name: /submit pulse/i }));
+    await waitFor(() => expect(addDoc).toHaveBeenCalledTimes(1));
+    expect(addDoc.mock.calls[0][1].comment).toBe('ESP is too slow to load');
+  });
+
   test('C4 — submit success shows thank-you banner', async () => {
     const user = userEvent.setup();
     render(<Pulse />);

@@ -280,6 +280,8 @@ function AdminConsole({ user }) {
 
       <DemographicBreakdown sentiment={sentiment} view={view} />
 
+      <RecentFeedback sentiment={sentiment} />
+
       <section className="space-y-3">
         <h2 className="text-base">Idea queue · ranked by upvotes</h2>
         {queue.length === 0 ? (
@@ -576,6 +578,53 @@ function DemographicBreakdown({ sentiment, view }) {
             </tbody>
           </table>
         </div>
+      )}
+    </section>
+  );
+}
+
+// Score → emoji, indexed 1–5 (index 0 unused).
+const SCORE_EMOJI = ['', '😞', '😕', '😐', '🙂', '😄'];
+
+function formatEntryDate(ts) {
+  const ms = ts?.toMillis?.();
+  if (!ms) return '';
+  return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function RecentFeedback({ sentiment }) {
+  const comments = useMemo(
+    () => sentiment.filter((e) => e.comment && e.comment.trim()).slice(0, 25),
+    [sentiment],
+  );
+
+  return (
+    <section className="card space-y-4">
+      <div>
+        <h2 className="text-base">Recent feedback</h2>
+        <p className="text-xs text-brand-slate/60 mt-0.5">
+          {comments.length > 0
+            ? `Latest ${comments.length} pulse${comments.length === 1 ? '' : 's'} with a written comment`
+            : 'Written comments from the Daily Pulse will appear here.'}
+        </p>
+      </div>
+
+      {comments.length > 0 && (
+        <ul className="space-y-3">
+          {comments.map((c) => (
+            <li key={c.id} className="border-l-2 border-brand-green/15 pl-3">
+              <div className="flex items-center gap-1.5 text-xs text-brand-slate/55">
+                <span className="text-sm" aria-hidden="true">{SCORE_EMOJI[c.emoji] || '–'}</span>
+                <span className="sr-only">Score {c.emoji} of 5</span>
+                {c.module && (
+                  <span className="font-medium text-brand-green">{c.module}</span>
+                )}
+                <span>· {formatEntryDate(c.timestamp)}</span>
+              </div>
+              <p className="mt-1 text-sm text-brand-slate/90">{c.comment}</p>
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   );

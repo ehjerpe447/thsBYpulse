@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronDown, Lock, Send, CheckCircle2, Sparkles } from 'lucide-react';
+import { ChevronDown, Lock, Send, CheckCircle2, Sparkles, MessageSquare } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db, COLLECTIONS, MODULES, ROLES, BUSINESS_UNITS, LOCATIONS, withTimeout } from '../firebase';
 
@@ -39,6 +39,7 @@ export default function Pulse() {
   const [role, setRole] = useState('');
   const [location, setLocation] = useState('');
   const [bu, setBu] = useState('');
+  const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
@@ -70,6 +71,7 @@ export default function Pulse() {
           role: role || null,
           location: location || null,
           bu: bu || null,
+          comment: comment.trim() || null,
           timestamp: serverTimestamp(),
         }),
       );
@@ -82,6 +84,7 @@ export default function Pulse() {
       setRole('');
       setLocation('');
       setBu('');
+      setComment('');
     } catch (err) {
       setError('Could not submit your pulse. Please try again.');
       console.error(err);
@@ -231,6 +234,31 @@ export default function Pulse() {
                       ))}
                     </select>
                   </Field>
+                </div>
+              </div>
+
+              {/* Comment */}
+              <div className="space-y-2.5 border-t border-brand-green/10 pt-4">
+                <div className="flex items-center gap-2">
+                  <MessageSquare size={14} className="text-brand-green" />
+                  <span className="text-xs font-semibold uppercase tracking-wide text-brand-slate/70">
+                    Anything to add?
+                  </span>
+                </div>
+                <p className="text-xs text-brand-slate/70">
+                  Optional — a sentence on what's working or what isn't. Please don't
+                  include names or details that could identify you.
+                </p>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  maxLength={500}
+                  rows={3}
+                  placeholder="What's driving your rating today?"
+                  className="input resize-none"
+                />
+                <div className="text-right text-[11px] text-brand-slate/50">
+                  {comment.length}/500
                 </div>
               </div>
 
