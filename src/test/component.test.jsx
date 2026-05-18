@@ -247,6 +247,19 @@ describe('Ideas', () => {
     });
   });
 
+  test('C12b — submitting an idea includes the selected module', async () => {
+    const user = userEvent.setup();
+    render(<Ideas />);
+    await user.type(
+      screen.getByPlaceholderText(/better demand forecast/i),
+      'A brand new idea',
+    );
+    await user.selectOptions(screen.getByRole('combobox'), 'ESP');
+    await user.click(screen.getByRole('button', { name: /submit/i }));
+    await waitFor(() => expect(addDoc).toHaveBeenCalledTimes(1));
+    expect(addDoc.mock.calls[0][1].module).toBe('ESP');
+  });
+
   test('C13 — upvoting an idea calls updateDoc', async () => {
     onSnapshot.mockImplementation((q, successCb) => {
       successCb(makeSnap([{ title: 'Some idea', upvotes: 2, status: 'queue' }]));

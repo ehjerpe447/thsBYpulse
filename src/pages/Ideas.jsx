@@ -11,7 +11,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { ArrowUp, Plus, Search, TrendingUp, Clock, Sparkles } from 'lucide-react';
-import { db, COLLECTIONS, withTimeout } from '../firebase';
+import { db, COLLECTIONS, MODULES, withTimeout } from '../firebase';
 
 const VOTE_KEY = 'tph_voted_ideas_v1';
 
@@ -31,6 +31,7 @@ export default function Ideas() {
   const [ideas, setIdeas] = useState([]);
   const [search, setSearch] = useState('');
   const [draftDescription, setDraftDescription] = useState('');
+  const [draftModule, setDraftModule] = useState('');
   const [sortBy, setSortBy] = useState('top');
   const [voted, setVoted] = useState(loadVotes);
   const [submitting, setSubmitting] = useState(false);
@@ -90,6 +91,7 @@ export default function Ideas() {
         addDoc(collection(db, COLLECTIONS.FEATURES), {
           title,
           description: draftDescription.trim(),
+          module: draftModule || null,
           upvotes: 1,
           status: 'queue',
           createdAt: serverTimestamp(),
@@ -97,6 +99,7 @@ export default function Ideas() {
       );
       setSearch('');
       setDraftDescription('');
+      setDraftModule('');
     } catch (err) {
       console.error(err);
       setSubmitError(err.message || 'Could not submit your idea. Please try again.');
@@ -197,6 +200,19 @@ export default function Ideas() {
 
           {search.trim().length > 1 && !exactMatch && (
             <div className="space-y-2">
+              <select
+                value={draftModule}
+                onChange={(e) => setDraftModule(e.target.value)}
+                className="input appearance-none sm:max-w-xs"
+                aria-label="Module"
+              >
+                <option value="">Which module? (optional)</option>
+                {MODULES.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
               <textarea
                 value={draftDescription}
                 onChange={(e) => setDraftDescription(e.target.value)}
@@ -286,6 +302,11 @@ function IdeaRow({ idea, hasVoted, onVote }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <h3 className="text-base font-semibold text-brand-green">{idea.title}</h3>
+          {idea.module && (
+            <span className="inline-flex items-center rounded-full bg-brand-green/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-green">
+              {idea.module}
+            </span>
+          )}
           {idea.status === 'roadmap' && (
             <span className="inline-flex items-center gap-1 rounded-full bg-brand-gold/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-gold">
               On roadmap

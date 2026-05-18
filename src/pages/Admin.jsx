@@ -30,7 +30,7 @@ import {
   Rocket,
   X,
 } from 'lucide-react';
-import { auth, db, COLLECTIONS, withTimeout } from '../firebase';
+import { auth, db, COLLECTIONS, MODULES, withTimeout } from '../firebase';
 import { computeSentimentStats, computeSegmentBreakdown } from '../utils/analytics';
 
 export default function Admin() {
@@ -124,6 +124,7 @@ function AdminConsole({ user }) {
   const [promoteError, setPromoteError] = useState('');
   const [snapshotError, setSnapshotError] = useState('');
   const [view, setView] = useState('near'); // 'near' | 'long'
+  const [queueModule, setQueueModule] = useState('all');
 
   useEffect(() => {
     const onError = (err) => {
@@ -158,6 +159,10 @@ function AdminConsole({ user }) {
         .filter((f) => !onRoadmapIds.has(f.id))
         .sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0)),
     [features, onRoadmapIds],
+  );
+  const visibleQueue = useMemo(
+    () => (queueModule === 'all' ? queue : queue.filter((f) => f.module === queueModule)),
+    [queue, queueModule],
   );
 
   return (
@@ -283,21 +288,45 @@ function AdminConsole({ user }) {
       <RecentFeedback sentiment={sentiment} />
 
       <section className="space-y-3">
-        <h2 className="text-base">Idea queue · ranked by upvotes</h2>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="text-base">Idea queue · ranked by upvotes</h2>
+          <select
+            value={queueModule}
+            onChange={(e) => setQueueModule(e.target.value)}
+            className="input appearance-none text-xs py-1.5 sm:max-w-[180px]"
+            aria-label="Filter idea queue by module"
+          >
+            <option value="all">All modules</option>
+            {MODULES.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </div>
         {queue.length === 0 ? (
           <div className="card text-center text-sm text-brand-slate/60">
             No pending ideas. The queue is clear.
           </div>
+        ) : visibleQueue.length === 0 ? (
+          <div className="card text-center text-sm text-brand-slate/60">
+            No queued ideas tagged “{queueModule}”.
+          </div>
         ) : (
           <ul className="space-y-2.5">
-            {queue.map((idea) => (
+            {visibleQueue.map((idea) => (
               <li key={idea.id} className="card flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-semibold text-brand-green">
                       ▲ {idea.upvotes || 0}
                     </span>
                     <h3 className="text-base">{idea.title}</h3>
+                    {idea.module && (
+                      <span className="inline-flex items-center rounded-full bg-brand-green/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-green">
+                        {idea.module}
+                      </span>
+                    )}
                   </div>
                   {idea.description && (
                     <p className="mt-1 text-sm text-brand-slate/80">{idea.description}</p>
