@@ -38,6 +38,10 @@ vi.mock('firebase/firestore', () => ({
   updateDoc:       vi.fn(),
   increment:       vi.fn((n) => n),
   serverTimestamp: vi.fn(() => null),
+  where:           vi.fn(),
+  getDocs:         vi.fn(() => Promise.resolve({ docs: [] })),
+  getCountFromServer: vi.fn(() => Promise.resolve({ data: () => ({ count: 0 }) })),
+  Timestamp:       { fromMillis: (m) => ({ millis: m }) },
   writeBatch:      vi.fn(() => ({
     set:    vi.fn(),
     update: vi.fn(),

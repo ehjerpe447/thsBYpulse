@@ -2,11 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   collection,
   doc,
+  getCountFromServer,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
+  Timestamp,
   updateDoc,
+  where,
   writeBatch,
 } from 'firebase/firestore';
 import {
@@ -36,6 +40,11 @@ import {
 import { auth, db, COLLECTIONS, MODULES, TEAM_SIZE, IDEA_STATUSES, withTimeout } from '../firebase';
 import { computeSentimentStats, computeSegmentBreakdown, computeParticipation } from '../utils/analytics';
 import { toCsv } from '../utils/csv';
+
+// The live Admin sentiment subscription is bounded to this many days —
+// long enough for every dashboard view (the 12-week chart needs ~84) — so
+// the download and client-side aggregation stay flat as history grows.
+const SENTIMENT_WINDOW_DAYS = 100;
 
 // ── CSV export ───────────────────────────────────────────────────────────────
 
@@ -172,15 +181,24 @@ function AdminConsole({ user }) {
   const [view, setView] = useState('near'); // 'near' | 'long'
   const [queueModule, setQueueModule] = useState('all');
   const [declining, setDeclining] = useState(null);
+  const [totalResponses, setTotalResponses] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const onError = (err) => {
       console.error(err);
       setSnapshotError('Could not load data. Check your Firebase connection or security rules.');
     };
+    // Bound the live sentiment subscription to a recent window so the
+    // download and aggregation cost stay flat as history accumulates.
+    const cutoff = Timestamp.fromMillis(Date.now() - SENTIMENT_WINDOW_DAYS * 86400000);
     const unsubs = [
       onSnapshot(
-        query(collection(db, COLLECTIONS.SENTIMENT), orderBy('timestamp', 'desc')),
+        query(
+          collection(db, COLLECTIONS.SENTIMENT),
+          where('timestamp', '>=', cutoff),
+          orderBy('timestamp', 'desc'),
+        ),
         (snap) => setSentiment(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
         onError,
       ),
@@ -195,6 +213,10 @@ function AdminConsole({ user }) {
         onError,
       ),
     ];
+    // All-time response total via a cheap server-side count, not a full read.
+    getCountFromServer(collection(db, COLLECTIONS.SENTIMENT))
+      .then((snap) => setTotalResponses(snap.data().count))
+      .catch((err) => console.error(err));
     return () => unsubs.forEach((u) => u());
   }, []);
 
@@ -215,8 +237,21 @@ function AdminConsole({ user }) {
   );
 
   const stamp = () => new Date().toISOString().slice(0, 10);
-  const exportSentiment = () =>
-    downloadCsv(`planning-pulse-sentiment-${stamp()}.csv`, toCsv(sentiment, SENTIMENT_COLUMNS));
+  // Sentiment export pulls the full history on demand — independent of the
+  // windowed live subscription — so the CSV is always all-time.
+  const exportSentiment = async () => {
+    setExporting(true);
+    try {
+      const snap = await getDocs(collection(db, COLLECTIONS.SENTIMENT));
+      const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      downloadCsv(`planning-pulse-sentiment-${stamp()}.csv`, toCsv(all, SENTIMENT_COLUMNS));
+    } catch (err) {
+      console.error(err);
+      setSnapshotError('Sentiment export failed. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
   const exportIdeas = () =>
     downloadCsv(`planning-pulse-ideas-${stamp()}.csv`, toCsv(features, IDEA_COLUMNS));
 
@@ -280,11 +315,11 @@ function AdminConsole({ user }) {
         <button
           type="button"
           onClick={exportSentiment}
-          disabled={sentiment.length === 0}
+          disabled={exporting}
           className="btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Download size={15} />
-          Sentiment CSV
+          {exporting ? 'Exporting…' : 'Sentiment CSV'}
         </button>
         <button
           type="button"
@@ -320,7 +355,7 @@ function AdminConsole({ user }) {
           dailyParticipation={participation.dailyParticipation}
           weeklyCount={stats.thisWeek.count}
         />
-        <MetricCard label="Total responses" value={sentiment.length} />
+        <MetricCard label="Total responses" value={totalResponses ?? '…'} />
         <MetricCard label="Ideas in queue" value={queueCount} />
       </section>
 
