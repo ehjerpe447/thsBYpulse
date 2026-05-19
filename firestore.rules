@@ -1,0 +1,74 @@
+// Firestore security rules for TreeHouse Planning Pulse.
+//
+// This file is the version-controlled source of truth. It is NOT deployed
+// automatically — publish changes in the Firebase Console
+// (Firestore Database -> Rules) and keep this file in sync.
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // An optional field: absent/null, or a string no longer than `max`.
+    function optString(v, max) {
+      return v == null || (v is string && v.size() <= max);
+    }
+
+    // ── Daily Pulse sentiment ──────────────────────────────────────────────
+    // Anyone may submit a pulse. Entries are immutable (no update/delete) and
+    // only an authenticated admin may read them, so individual responses are
+    // never publicly exposed. Create is validated for shape, type and size.
+    match /sentiment_entries/{id} {
+      allow read:   if request.auth != null;
+      allow update: if false;
+      allow delete: if false;
+      allow create: if request.resource.data.keys().hasOnly(
+                         ['emoji', 'module', 'role', 'location', 'bu', 'comment', 'timestamp'])
+                    && request.resource.data.emoji is int
+                    && request.resource.data.emoji >= 1
+                    && request.resource.data.emoji <= 5
+                    && optString(request.resource.data.module, 64)
+                    && optString(request.resource.data.role, 64)
+                    && optString(request.resource.data.location, 64)
+                    && optString(request.resource.data.bu, 64)
+                    && optString(request.resource.data.comment, 500)
+                    && request.resource.data.timestamp is timestamp;
+    }
+
+    // ── Idea Lab feature requests ──────────────────────────────────────────
+    // Anyone may submit and read ideas. A new idea must start with exactly
+    // one upvote and status "under_review". Unauthenticated clients may only
+    // change `upvotes` by plus or minus one; admins may update any field.
+    match /feature_requests/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(
+                         ['title', 'description', 'module', 'upvotes', 'status', 'createdAt'])
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() > 0
+                    && request.resource.data.title.size() <= 200
+                    && request.resource.data.description is string
+                    && request.resource.data.description.size() <= 2000
+                    && optString(request.resource.data.module, 64)
+                    && request.resource.data.upvotes == 1
+                    && request.resource.data.status == 'under_review'
+                    && request.resource.data.createdAt is timestamp;
+      allow update: if request.auth != null
+                    || (
+                         request.resource.data.diff(resource.data)
+                           .affectedKeys().hasOnly(['upvotes'])
+                         && (
+                              request.resource.data.upvotes == resource.data.upvotes + 1
+                              || request.resource.data.upvotes == resource.data.upvotes - 1
+                            )
+                       );
+      allow delete: if request.auth != null;
+    }
+
+    // ── Roadmap items ──────────────────────────────────────────────────────
+    // Public read; only an authenticated admin may write.
+    match /roadmap_items/{id} {
+      allow read:  if true;
+      allow write: if request.auth != null;
+    }
+  }
+}
