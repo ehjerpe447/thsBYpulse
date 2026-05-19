@@ -4,12 +4,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        'brand-green': '#004A29',
-        'brand-green-dark': '#003620',
-        'brand-green-light': '#0a6b41',
-        'brand-white': '#F9F9F7',
-        'brand-slate': '#4A4A4A',
-        'brand-gold': '#B8893A',
+        // TreeHouse Foods brand palette (2026 brand template).
+        // brand-green is the brand sage darkened for UI/text contrast;
+        // brand-green-light holds the exact brand sage (#628C7C).
+        'brand-green': '#4C7063',
+        'brand-green-dark': '#3A564C',
+        'brand-green-light': '#628C7C',
+        'brand-white': '#FFFFFF',
+        'brand-slate': '#333F48',
+        'brand-gold': '#B7A87D',
         'brand-leaf': '#7FB069',
       },
       fontFamily: {
@@ -27,8 +30,8 @@ export default {
         DEFAULT: '8px',
       },
       boxShadow: {
-        card: '0 1px 3px rgba(0, 74, 41, 0.06), 0 1px 2px rgba(0, 74, 41, 0.04)',
-        'card-hover': '0 4px 12px rgba(0, 74, 41, 0.08), 0 2px 4px rgba(0, 74, 41, 0.04)',
+        card: '0 1px 3px rgba(51, 63, 72, 0.06), 0 1px 2px rgba(51, 63, 72, 0.04)',
+        'card-hover': '0 4px 12px rgba(51, 63, 72, 0.08), 0 2px 4px rgba(51, 63, 72, 0.04)',
       },
     },
   },

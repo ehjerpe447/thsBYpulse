@@ -1,5 +1,5 @@
 import { Link, NavLink } from 'react-router-dom';
-import { TreePine, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 
 const navItems = [
   { to: '/pulse', label: 'Daily Pulse' },
@@ -12,14 +12,14 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-30 bg-brand-white/85 backdrop-blur border-b border-brand-green/10">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <Link to="/pulse" className="flex items-center gap-2.5 group">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-green text-brand-white shadow-card transition group-hover:bg-brand-green-dark">
-            <TreePine size={20} strokeWidth={2.25} />
-          </span>
-          <span className="flex flex-col leading-tight">
-            <span className="text-[15px] font-semibold text-brand-green tracking-tight">
-              TreeHouse <span className="font-normal text-brand-slate">Foods</span>
-            </span>
+        <Link to="/pulse" className="flex items-center gap-3">
+          <img
+            src="/treehouse-foods-logo.png"
+            alt="TreeHouse Foods"
+            className="h-7 w-auto"
+          />
+          <span className="hidden sm:flex items-center gap-3">
+            <span className="h-6 w-px bg-brand-slate/20" aria-hidden="true" />
             <span className="text-[11px] uppercase tracking-[0.12em] text-brand-slate/60">
               Planning Pulse
             </span>

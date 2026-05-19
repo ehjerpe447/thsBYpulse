@@ -376,7 +376,7 @@ function AdminConsole({ user }) {
                 <XAxis
                   dataKey="day"
                   fontSize={11}
-                  stroke="#4A4A4A"
+                  stroke="#333F48"
                   tickLine={false}
                   axisLine={false}
                 />
@@ -384,23 +384,23 @@ function AdminConsole({ user }) {
                   domain={[1, 5]}
                   ticks={[1, 2, 3, 4, 5]}
                   fontSize={11}
-                  stroke="#4A4A4A"
+                  stroke="#333F48"
                   tickLine={false}
                   axisLine={false}
                 />
                 <Tooltip
                   contentStyle={{
                     borderRadius: 8,
-                    border: '1px solid rgba(0,74,41,0.15)',
+                    border: '1px solid rgba(51,63,72,0.15)',
                     fontSize: 12,
                   }}
                 />
                 <Line
                   type="monotone"
                   dataKey="avg"
-                  stroke="#004A29"
+                  stroke="#4C7063"
                   strokeWidth={2.5}
-                  dot={{ fill: '#004A29', r: 3 }}
+                  dot={{ fill: '#4C7063', r: 3 }}
                   activeDot={{ r: 5 }}
                 />
               </LineChart>

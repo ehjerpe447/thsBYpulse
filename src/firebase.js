@@ -110,7 +110,7 @@ export const TEAM_SIZE = 80;
 // classes for the status chip shown on idea cards.
 export const IDEA_STATUSES = [
   { value: 'under_review', label: 'Under Review', badge: 'bg-brand-slate/10 text-brand-slate' },
-  { value: 'planned',      label: 'Planned',      badge: 'bg-brand-gold/15 text-brand-gold' },
+  { value: 'planned',      label: 'Planned',      badge: 'bg-brand-gold/20 text-brand-slate' },
   { value: 'in_progress',  label: 'In Progress',  badge: 'bg-blue-100 text-blue-700' },
   { value: 'shipped',      label: 'Shipped',      badge: 'bg-brand-leaf/25 text-brand-green' },
   { value: 'declined',     label: 'Declined',     badge: 'bg-red-100 text-red-700' },
