@@ -5,6 +5,7 @@ const navItems = [
   { to: '/pulse', label: 'Daily Pulse' },
   { to: '/ideas', label: 'Idea Lab' },
   { to: '/roadmap', label: 'Roadmap' },
+  { to: '/changelog', label: 'Changelog' },
 ];
 
 export default function Header() {

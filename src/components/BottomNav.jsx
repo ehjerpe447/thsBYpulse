@@ -1,16 +1,17 @@
 import { NavLink } from 'react-router-dom';
-import { Activity, Lightbulb, Map } from 'lucide-react';
+import { Activity, Lightbulb, Map, Rocket } from 'lucide-react';
 
 const items = [
   { to: '/pulse', label: 'Pulse', Icon: Activity },
   { to: '/ideas', label: 'Ideas', Icon: Lightbulb },
   { to: '/roadmap', label: 'Roadmap', Icon: Map },
+  { to: '/changelog', label: 'Changelog', Icon: Rocket },
 ];
 
 export default function BottomNav() {
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-brand-green/10 bg-brand-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
-      <ul className="grid grid-cols-3">
+      <ul className="grid grid-cols-4">
         {items.map(({ to, label, Icon }) => (
           <li key={to}>
             <NavLink

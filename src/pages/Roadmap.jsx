@@ -42,15 +42,19 @@ export default function Roadmap() {
     };
   }, []);
 
+  // Show only ideas still in flight — planned or in progress. Shipped
+  // ideas move to the Changelog; declined / regressed ones drop off.
   const grouped = useMemo(() => {
     const acc = {};
     items.forEach((item) => {
+      const status = features[item.featureId]?.status;
+      if (status !== 'planned' && status !== 'in_progress') return;
       const key = item.timing || 'Unscheduled';
       if (!acc[key]) acc[key] = [];
       acc[key].push(item);
     });
     return acc;
-  }, [items]);
+  }, [items, features]);
 
   const sortedTimings = useMemo(
     () => Object.keys(grouped).sort((a, b) => a.localeCompare(b)),
@@ -76,7 +80,7 @@ export default function Roadmap() {
 
       {loading || !featuresReady ? (
         <div className="card text-center text-sm text-brand-slate/60">Loading roadmap…</div>
-      ) : items.length === 0 ? (
+      ) : sortedTimings.length === 0 ? (
         <div className="card text-center py-12">
           <Map size={28} className="mx-auto text-brand-green/40" />
           <p className="mt-3 text-sm text-brand-slate/70">

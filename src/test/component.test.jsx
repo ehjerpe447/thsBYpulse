@@ -60,6 +60,7 @@ import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 import Pulse from '../pages/Pulse';
 import Ideas from '../pages/Ideas';
 import Admin from '../pages/Admin';
+import Changelog from '../pages/Changelog';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -365,5 +366,28 @@ describe('Admin / Login', () => {
     await waitFor(() =>
       expect(screen.getByText(/wrong password/i)).toBeInTheDocument(),
     );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Changelog — C19
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('Changelog', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test('C19 — lists only shipped ideas', async () => {
+    onSnapshot.mockImplementation((q, cb) => {
+      cb(makeSnap([
+        { title: 'Delivered feature', status: 'shipped', shippedAt: { toMillis: () => Date.now() } },
+        { title: 'Planned feature',   status: 'planned' },
+      ]));
+      return unsub;
+    });
+    render(<Changelog />);
+    await waitFor(() => screen.getByText('Delivered feature'));
+    expect(screen.queryByText('Planned feature')).not.toBeInTheDocument();
   });
 });

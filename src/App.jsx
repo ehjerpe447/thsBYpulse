@@ -5,6 +5,7 @@ import BottomNav from './components/BottomNav.jsx';
 import Pulse from './pages/Pulse.jsx';
 import Ideas from './pages/Ideas.jsx';
 import Roadmap from './pages/Roadmap.jsx';
+import Changelog from './pages/Changelog.jsx';
 
 // Admin pulls in Recharts (~290 KB gzipped) — load it only when needed
 // so the Pulse / Ideas / Roadmap pages stay light.
@@ -28,6 +29,7 @@ export default function App() {
             <Route path="/pulse" element={<Pulse />} />
             <Route path="/ideas" element={<Ideas />} />
             <Route path="/roadmap" element={<Roadmap />} />
+            <Route path="/changelog" element={<Changelog />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<Navigate to="/pulse" replace />} />
           </Routes>
