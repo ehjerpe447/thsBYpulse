@@ -308,6 +308,23 @@ describe('Ideas', () => {
     );
     expect(stored).toContain('doc-0');
   });
+
+  test('C20 — a failed upvote write rolls the vote back', async () => {
+    onSnapshot.mockImplementation((q, successCb) => {
+      successCb(makeSnap([{ title: 'Rollback idea', upvotes: 2, status: 'under_review' }]));
+      return unsub;
+    });
+    updateDoc.mockRejectedValueOnce(new Error('network'));
+    const user = userEvent.setup();
+    render(<Ideas />);
+    await waitFor(() => screen.getByText('Rollback idea'));
+    await user.click(screen.getByRole('button', { name: /upvote/i }));
+    await waitFor(() => expect(updateDoc).toHaveBeenCalled());
+    await waitFor(() => {
+      const stored = JSON.parse(localStorage.getItem('tph_voted_ideas_v1') || '[]');
+      expect(stored).not.toContain('doc-0');
+    });
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

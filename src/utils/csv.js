@@ -2,11 +2,19 @@
  * Minimal RFC 4180 CSV serialization. Pure — no DOM, fully testable.
  */
 
-// Escape one field: wrap in double quotes if it contains a comma, quote,
-// or newline, and double any embedded quotes. null/undefined → empty.
+// Characters that spreadsheet apps treat as the start of a formula.
+const FORMULA_LEAD = /^[=+\-@\t\r]/;
+
+// Escape one field for CSV:
+//  1. Formula-injection guard — a value beginning with a formula character
+//     is prefixed with a single quote so Excel/Sheets treat it as text, not
+//     an executable macro.
+//  2. RFC 4180 — wrap in double quotes if it contains a comma, quote, or
+//     newline, doubling any embedded quotes. null/undefined → empty.
 function escapeField(value) {
   if (value == null) return '';
-  const s = String(value);
+  let s = String(value);
+  if (FORMULA_LEAD.test(s)) s = `'${s}`;
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

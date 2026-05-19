@@ -115,6 +115,7 @@ export default function Ideas() {
 
   const toggleVote = async (idea) => {
     const hasVoted = voted.has(idea.id);
+    const prev = voted; // snapshot for rollback if the write fails
     const next = new Set(voted);
     if (hasVoted) next.delete(idea.id);
     else next.add(idea.id);
@@ -126,6 +127,9 @@ export default function Ideas() {
       });
     } catch (err) {
       console.error(err);
+      // Roll the optimistic update back so the UI matches the server.
+      setVoted(prev);
+      saveVotes(prev);
     }
   };
 

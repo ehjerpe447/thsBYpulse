@@ -29,15 +29,11 @@ function saveVotes(set) {
 
 // withTimeout (from firebase.js) — tested independently
 function withTimeout(promise, ms = 10000) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(
-        () => reject(new Error('Request timed out.')),
-        ms,
-      ),
-    ),
-  ]);
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('Request timed out.')), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
 }
 
 // Entry factory — ts relative to now
@@ -207,6 +203,14 @@ describe('toCsv', () => {
 
   test('U27 — derived columns via get()', () => {
     expect(toCsv([{ a: 2, b: 3 }], [{ label: 'Sum', get: (r) => r.a + r.b }])).toBe('Sum\r\n5');
+  });
+
+  test('U28 — a value starting with = is prefixed so spreadsheets treat it as text', () => {
+    expect(toCsv([{ name: '=1+1', note: 'ok' }], cols)).toBe("Name,Note\r\n'=1+1,ok");
+  });
+
+  test('U29 — formula prefix combines with quoting when the value also has a comma', () => {
+    expect(toCsv([{ name: '+a,b', note: 'ok' }], cols)).toBe('Name,Note\r\n"\'+a,b",ok');
   });
 });
 

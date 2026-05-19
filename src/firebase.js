@@ -41,16 +41,18 @@ const firebaseConfig = {
   appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-export const withTimeout = (promise, ms = 10000) =>
-  Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(
-        () => reject(new Error('Request timed out. Check your Firebase configuration.')),
-        ms,
-      ),
-    ),
-  ]);
+export const withTimeout = (promise, ms = 10000) => {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(
+      () => reject(new Error('Request timed out. Check your Firebase configuration.')),
+      ms,
+    );
+  });
+  // Clear the timer once the race settles — on resolve or reject — so a
+  // completed request never leaves a pending timer in the event loop.
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
+};
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
