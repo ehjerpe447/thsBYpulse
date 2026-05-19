@@ -180,7 +180,7 @@ export default function Ideas() {
                   <ArrowUp size={14} strokeWidth={2.5} aria-hidden="true" />
                   <span className="text-xs font-semibold">{exactMatchIdea.upvotes || 0}</span>
                 </button>
-                <span className="text-sm font-medium text-brand-green">{exactMatchIdea.title}</span>
+                <span className="text-sm font-medium text-brand-slate">{exactMatchIdea.title}</span>
               </div>
             </div>
           )}
@@ -344,7 +344,7 @@ function IdeaRow({ idea, hasVoted, onVote }) {
       </button>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <h3 className="text-base font-semibold text-brand-green">{idea.title}</h3>
+          <h3 className="text-base font-semibold text-brand-slate">{idea.title}</h3>
           {idea.module && (
             <span className="inline-flex items-center rounded-full bg-brand-green/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-green">
               {idea.module}

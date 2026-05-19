@@ -11,7 +11,7 @@
     @apply bg-brand-white text-brand-slate font-sans;
   }
   h1, h2, h3, h4 {
-    @apply text-brand-green font-semibold tracking-tight;
+    @apply text-brand-slate font-semibold tracking-tight;
   }
 }
 
