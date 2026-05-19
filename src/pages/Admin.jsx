@@ -5,6 +5,8 @@ import {
   onSnapshot,
   orderBy,
   query,
+  serverTimestamp,
+  updateDoc,
   writeBatch,
 } from 'firebase/firestore';
 import {
@@ -31,7 +33,7 @@ import {
   X,
   Download,
 } from 'lucide-react';
-import { auth, db, COLLECTIONS, MODULES, TEAM_SIZE, withTimeout } from '../firebase';
+import { auth, db, COLLECTIONS, MODULES, TEAM_SIZE, IDEA_STATUSES, withTimeout } from '../firebase';
 import { computeSentimentStats, computeSegmentBreakdown, computeParticipation } from '../utils/analytics';
 import { toCsv } from '../utils/csv';
 
@@ -73,6 +75,9 @@ function downloadCsv(filename, csv) {
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+// Sort order for the admin idea list — active states first.
+const STATUS_ORDER = { under_review: 0, planned: 1, in_progress: 2, shipped: 3, declined: 4 };
 
 export default function Admin() {
   const [user, setUser] = useState(null);
@@ -166,6 +171,7 @@ function AdminConsole({ user }) {
   const [snapshotError, setSnapshotError] = useState('');
   const [view, setView] = useState('near'); // 'near' | 'long'
   const [queueModule, setQueueModule] = useState('all');
+  const [declining, setDeclining] = useState(null);
 
   useEffect(() => {
     const onError = (err) => {
@@ -195,16 +201,17 @@ function AdminConsole({ user }) {
   const stats = useMemo(() => computeSentimentStats(sentiment), [sentiment]);
   const participation = computeParticipation(stats.thisWeek.count, TEAM_SIZE);
   const onRoadmapIds = useMemo(() => new Set(roadmap.map((r) => r.featureId)), [roadmap]);
-  const queue = useMemo(
-    () =>
-      [...features]
-        .filter((f) => !onRoadmapIds.has(f.id))
-        .sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0)),
-    [features, onRoadmapIds],
-  );
-  const visibleQueue = useMemo(
-    () => (queueModule === 'all' ? queue : queue.filter((f) => f.module === queueModule)),
-    [queue, queueModule],
+  const ideasList = useMemo(() => {
+    const f = queueModule === 'all' ? features : features.filter((x) => x.module === queueModule);
+    return [...f].sort((a, b) => {
+      const oa = STATUS_ORDER[a.status] ?? 0;
+      const ob = STATUS_ORDER[b.status] ?? 0;
+      return oa !== ob ? oa - ob : (b.upvotes || 0) - (a.upvotes || 0);
+    });
+  }, [features, queueModule]);
+  const queueCount = useMemo(
+    () => features.filter((f) => (f.status || 'under_review') === 'under_review').length,
+    [features],
   );
 
   const stamp = () => new Date().toISOString().slice(0, 10);
@@ -212,6 +219,20 @@ function AdminConsole({ user }) {
     downloadCsv(`planning-pulse-sentiment-${stamp()}.csv`, toCsv(sentiment, SENTIMENT_COLUMNS));
   const exportIdeas = () =>
     downloadCsv(`planning-pulse-ideas-${stamp()}.csv`, toCsv(features, IDEA_COLUMNS));
+
+  const changeStatus = (idea, next) => {
+    if (!next || next === idea.status) return;
+    if (next === 'declined') { setDeclining(idea); return; }
+    // Reaching "planned" needs roadmap detail — route through the modal
+    // unless a roadmap item already exists for this idea.
+    if (next === 'planned' && !onRoadmapIds.has(idea.id)) { setPromoting(idea); return; }
+    const payload = { status: next };
+    if (next === 'shipped') payload.shippedAt = serverTimestamp();
+    updateDoc(doc(db, COLLECTIONS.FEATURES, idea.id), payload).catch((err) => {
+      console.error(err);
+      setSnapshotError('Could not update idea status. Please try again.');
+    });
+  };
 
   return (
     <div className="space-y-7">
@@ -300,7 +321,7 @@ function AdminConsole({ user }) {
           weeklyCount={stats.thisWeek.count}
         />
         <MetricCard label="Total responses" value={sentiment.length} />
-        <MetricCard label="Ideas in queue" value={queue.length} />
+        <MetricCard label="Ideas in queue" value={queueCount} />
       </section>
 
       <section className="card space-y-4">
@@ -363,12 +384,12 @@ function AdminConsole({ user }) {
 
       <section className="space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <h2 className="text-base">Idea queue · ranked by upvotes</h2>
+          <h2 className="text-base">Ideas</h2>
           <select
             value={queueModule}
             onChange={(e) => setQueueModule(e.target.value)}
             className="input appearance-none text-xs py-1.5 sm:max-w-[180px]"
-            aria-label="Filter idea queue by module"
+            aria-label="Filter ideas by module"
           >
             <option value="all">All modules</option>
             {MODULES.map((m) => (
@@ -378,17 +399,17 @@ function AdminConsole({ user }) {
             ))}
           </select>
         </div>
-        {queue.length === 0 ? (
+        {features.length === 0 ? (
           <div className="card text-center text-sm text-brand-slate/60">
-            No pending ideas. The queue is clear.
+            No ideas yet.
           </div>
-        ) : visibleQueue.length === 0 ? (
+        ) : ideasList.length === 0 ? (
           <div className="card text-center text-sm text-brand-slate/60">
-            No queued ideas tagged “{queueModule}”.
+            No ideas tagged “{queueModule}”.
           </div>
         ) : (
           <ul className="space-y-2.5">
-            {visibleQueue.map((idea) => (
+            {ideasList.map((idea) => (
               <li key={idea.id} className="card flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -401,15 +422,29 @@ function AdminConsole({ user }) {
                         {idea.module}
                       </span>
                     )}
+                    <StatusBadge status={idea.status} />
                   </div>
                   {idea.description && (
                     <p className="mt-1 text-sm text-brand-slate/80">{idea.description}</p>
                   )}
+                  {idea.status === 'declined' && idea.declineReason && (
+                    <p className="mt-1 text-xs text-brand-slate/60">
+                      <span className="font-medium">Declined:</span> {idea.declineReason}
+                    </p>
+                  )}
                 </div>
-                <button onClick={() => setPromoting(idea)} className="btn-primary whitespace-nowrap">
-                  <Rocket size={14} />
-                  Promote
-                </button>
+                <select
+                  value={idea.status || 'under_review'}
+                  onChange={(e) => changeStatus(idea, e.target.value)}
+                  className="input appearance-none text-xs py-1.5 sm:max-w-[150px] shrink-0"
+                  aria-label={`Status for ${idea.title}`}
+                >
+                  {IDEA_STATUSES.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
               </li>
             ))}
           </ul>
@@ -425,7 +460,7 @@ function AdminConsole({ user }) {
             const batch = writeBatch(db);
             const roadmapRef = doc(collection(db, COLLECTIONS.ROADMAP));
             batch.set(roadmapRef, { featureId: promoting.id, ...payload });
-            batch.update(doc(db, COLLECTIONS.FEATURES, promoting.id), { status: 'roadmap' });
+            batch.update(doc(db, COLLECTIONS.FEATURES, promoting.id), { status: 'planned' });
             try {
               await withTimeout(batch.commit());
               setPromoting(null);
@@ -437,6 +472,91 @@ function AdminConsole({ user }) {
           error={promoteError}
         />
       )}
+
+      {declining && (
+        <DeclineModal
+          idea={declining}
+          onClose={() => setDeclining(null)}
+          onSubmit={async (reason) => {
+            try {
+              await withTimeout(
+                updateDoc(doc(db, COLLECTIONS.FEATURES, declining.id), {
+                  status: 'declined',
+                  declineReason: reason,
+                }),
+              );
+              setDeclining(null);
+            } catch (err) {
+              console.error(err);
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const meta = IDEA_STATUSES.find((s) => s.value === status) || IDEA_STATUSES[0];
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${meta.badge}`}>
+      {meta.label}
+    </span>
+  );
+}
+
+function DeclineModal({ idea, onClose, onSubmit }) {
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await onSubmit(reason.trim());
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-lg bg-white shadow-card-hover">
+        <div className="flex items-start justify-between p-5 border-b border-brand-green/10">
+          <div>
+            <span className="text-[11px] uppercase tracking-wider text-red-600 font-semibold">
+              Decline idea
+            </span>
+            <h2 className="text-base mt-1">{idea.title}</h2>
+          </div>
+          <button onClick={onClose} className="text-brand-slate/60 hover:text-brand-slate">
+            <X size={18} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <label className="block">
+            <span className="block text-xs font-medium text-brand-slate/80 mb-1.5">
+              Reason for declining
+            </span>
+            <textarea
+              required
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+              placeholder="Shown to submitters in the Idea Lab — explain why this isn't moving forward…"
+              className="input resize-none"
+            />
+          </label>
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} className="btn-ghost">
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary" disabled={busy}>
+              {busy ? 'Saving…' : 'Decline idea'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
