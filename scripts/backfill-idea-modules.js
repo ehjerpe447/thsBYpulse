@@ -45,7 +45,8 @@ async function backfill() {
     process.exit(0);
   }
 
-  const batch = db.batch();
+  let batch = db.batch();
+  let batched = 0;
   const tally = {};
 
   for (const d of toTag) {
@@ -54,9 +55,15 @@ async function backfill() {
     tally[m] = (tally[m] || 0) + 1;
     batch.update(d.ref, { module: m });
     console.log(`  ${m.padEnd(10)} ← ${title}`);
+    batched++;
+    // Firestore caps a batch at 500 ops — flush and start fresh at 499.
+    if (batched % 499 === 0) {
+      await batch.commit();
+      batch = db.batch();
+    }
   }
 
-  await batch.commit();
+  if (batched % 499 !== 0) await batch.commit();
 
   console.log(`\nDone — tagged ${toTag.length} ideas.`);
   console.log('Distribution:', tally);

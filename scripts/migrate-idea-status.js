@@ -30,9 +30,11 @@ const VALID = ['under_review', 'planned', 'in_progress', 'shipped', 'declined'];
 
 async function migrate() {
   const snap = await db.collection('feature_requests').get();
-  const batch = db.batch();
-  const tally = {};
+
+  let batch = db.batch();
+  let batched = 0;
   let changed = 0;
+  const tally = {};
 
   for (const d of snap.docs) {
     const cur = d.data().status;
@@ -44,6 +46,13 @@ async function migrate() {
       batch.update(d.ref, { status: next });
       tally[`${cur ?? '(none)'} → ${next}`] = (tally[`${cur ?? '(none)'} → ${next}`] || 0) + 1;
       changed++;
+      batched++;
+      // Firestore caps a batch at 500 ops — flush and start fresh at 499.
+      if (batched % 499 === 0) {
+        await batch.commit();
+        console.log(`  … committed batch, ${changed} updated so far`);
+        batch = db.batch();
+      }
     }
   }
 
@@ -54,7 +63,7 @@ async function migrate() {
     process.exit(0);
   }
 
-  await batch.commit();
+  if (batched % 499 !== 0) await batch.commit();
   console.log('Mapping applied:', tally);
   process.exit(0);
 }
